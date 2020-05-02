@@ -1,0 +1,12 @@
+package com.sergeysav.voxel.client.gl
+
+import org.lwjgl.opengl.GL11
+
+enum class TextureInterpolationMode(val id: Int) {
+    LINEAR(GL11.GL_LINEAR),
+    NEAREST(GL11.GL_NEAREST),
+    BI_MIPMAP_LINEAR(GL11.GL_LINEAR_MIPMAP_LINEAR),
+    NEAR_MIPMAP_LINEAR(GL11.GL_NEAREST_MIPMAP_LINEAR),
+    BI_MIPMAP_NEAREST(GL11.GL_LINEAR_MIPMAP_NEAREST),
+    NEAR_MIPMAP_NEAREST(GL11.GL_NEAREST_MIPMAP_NEAREST)
+}
