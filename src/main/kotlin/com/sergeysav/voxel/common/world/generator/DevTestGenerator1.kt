@@ -1,6 +1,7 @@
 package com.sergeysav.voxel.common.world.generator
 
 import com.sergeysav.voxel.common.block.MutableBlockPosition
+import com.sergeysav.voxel.common.block.impl.Air
 import com.sergeysav.voxel.common.block.impl.Dirt
 import com.sergeysav.voxel.common.block.impl.Grass
 import com.sergeysav.voxel.common.block.impl.Stone
@@ -25,7 +26,7 @@ class DevTestGenerator1 : ChunkGenerator<Chunk> {
     private val lowFrequencyHeightGenerator = noiseGenerator2d(1, 10f, 1f/200, 8)
     private val generatorBlendGenerator = noiseGenerator2d(2, 1f, 1f/200, 2)
     private val blockGenerator = noiseGenerator(3, 10f, 0.05f, 8)
-    private val blockPosPool = LocalObjectPool({ MutableBlockPosition() }, 5)
+    private val blockPosPool = LocalObjectPool({ MutableBlockPosition() }, 2)
 
     init {
         log.trace { "Initializing Chunk Generator" }
@@ -44,8 +45,9 @@ class DevTestGenerator1 : ChunkGenerator<Chunk> {
                     val height = blend * highFrequencyHeightGenerator(x.toFloat(), z.toFloat()) + (1 - blend) * lowFrequencyHeightGenerator(x.toFloat(), z.toFloat())
                     for (j in 0 until 16) {
                         val y = j + chunk.position.y * 16
+                        blockPos.y = j
+
                         if (y < height) {
-                            blockPos.y = j
                             val block = blockGenerator(x.toFloat(), y.toFloat(), z.toFloat())
                             if (block > 0) {
                                 if (floor(height).toInt() == y) {

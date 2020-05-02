@@ -14,6 +14,7 @@ class SimpleUnionWorldLoadingManager(vararg strategies: WorldLoadingStrategy) : 
 
     private val log = KotlinLogging.logger {  }
     private val strategies = mutableListOf<WorldLoadingStrategy>()
+    private val toUnload = ArrayList<ChunkPosition>(1000)
 
     init {
         log.trace { "Initializing World Loading Manager" }
@@ -28,20 +29,30 @@ class SimpleUnionWorldLoadingManager(vararg strategies: WorldLoadingStrategy) : 
         loadCallback: (ChunkPosition) -> Unit,
         unloadCallback: (ChunkPosition) -> Unit
     ) {
-        strategies.forEach(WorldLoadingStrategy::update)
-
-        var positions = chunks.map(Chunk::position)
-        strategies.forEach {
-            positions = positions.filterNot(it::shouldStayLoaded)
+        for (strategy in strategies) {
+            strategy.update()
         }
-        positions.forEach(unloadCallback)
 
-        strategies.forEach {
-            it.requestLoads(world, chunks, loadCallback)
+        toUnload.clear()
+        ChunkLoop@for (chunk in chunks) {
+            for (strategy in strategies) {
+                if (strategy.shouldStayLoaded(chunk.position)) continue@ChunkLoop
+            }
+            toUnload.add(chunk.position)
+        }
+        for (position in toUnload) {
+            unloadCallback(position)
+        }
+        toUnload.clear()
+
+        for (strategy in strategies) {
+            strategy.requestLoads(world, chunks, loadCallback)
         }
     }
 
     override fun cleanupWorldLoading() {
-        strategies.forEach(WorldLoadingStrategy::cleanup)
+        for (strategy in strategies) {
+            strategy.cleanup()
+        }
     }
 }

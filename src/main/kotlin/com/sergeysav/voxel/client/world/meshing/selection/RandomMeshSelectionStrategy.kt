@@ -9,7 +9,7 @@ import com.sergeysav.voxel.client.chunk.ClientChunk
  */
 class RandomMeshSelectionStrategy : MeshSelectionStrategy {
 
-    private val chunks = mutableSetOf<ClientChunk>()
+    private val chunks = LinkedHashSet<ClientChunk>(1000, 0.75f)
 
     override fun currentSize(): Int = chunks.size
 

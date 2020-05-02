@@ -18,10 +18,11 @@ import com.sergeysav.voxel.common.block.state.DefaultBlockState
 import com.sergeysav.voxel.common.bound
 import com.sergeysav.voxel.common.chunk.Chunk
 import com.sergeysav.voxel.common.chunk.ChunkPosition
-import com.sergeysav.voxel.common.chunk.ImmutableChunkPosition
 import com.sergeysav.voxel.common.chunk.MutableChunkPosition
 import com.sergeysav.voxel.common.data.Direction
 import com.sergeysav.voxel.common.pool.LocalObjectPool
+import com.sergeysav.voxel.common.pool.ObjectPool
+import com.sergeysav.voxel.common.pool.SynchronizedObjectPool
 import com.sergeysav.voxel.common.pool.with
 import com.sergeysav.voxel.common.world.World
 import com.sergeysav.voxel.common.world.chunks.ChunkManager
@@ -31,6 +32,8 @@ import com.sergeysav.voxel.common.world.raycast.RaycastResult
 import mu.KotlinLogging
 import org.joml.Matrix4f
 import org.lwjgl.opengl.GL20
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.BlockingQueue
 
 /**
  * @author sergeys
@@ -50,11 +53,15 @@ class ClientWorld(
     private val raycastResultPool = LocalObjectPool({ RaycastResult(false, RaycastResult.RaycastOutcome.COMPLETED, MutableBlockPosition(), null, null) }, 1)
     private val chunks = mutableMapOf<ChunkPosition, ClientChunk>()
     private val cameraAABBChecker = CameraAABBChecker()
+    private val chunkPool: ObjectPool<ClientChunk> = SynchronizedObjectPool({ ClientChunk(MutableChunkPosition()) }, 128)
 
     init {
         log.info { "Initializing Client World" }
-        chunkManager.initialize { clientChunk ->
-            clientChunk.shouldRender = true
+        chunkManager.initialize({
+            it.reset()
+            chunkPool.put(it)
+        }) { clientChunk ->
+            clientChunk.loaded = true
             worldMeshingManager.notifyMeshDirty(clientChunk)
 
             chunkPosPool.with {
@@ -63,7 +70,13 @@ class ClientWorld(
                     it.x += d.relX
                     it.y += d.relY
                     it.z += d.relZ
-                    chunks[it]?.let { c -> c.adjacentLoadedChunks.incrementAndGet(); worldMeshingManager.notifyMeshDirty(c) }
+                    chunks[it]?.let { c ->
+                        if (c.loaded) { // If the adjacent chunk is loaded set our adjacent chunks correctly
+                            clientChunk.adjacentLoadedChunks.incrementAndGet();
+                        }
+                        c.adjacentLoadedChunks.incrementAndGet();
+                        worldMeshingManager.notifyMeshDirty(c)
+                    }
                 }
             }
         }
@@ -71,8 +84,8 @@ class ClientWorld(
 
     private fun doLoad(chunkPosition: ChunkPosition) {
         if (!chunks.containsKey(chunkPosition)) {
-            val chunk = ClientChunk(ImmutableChunkPosition(chunkPosition))
-
+            val chunk = chunkPool.get()
+            (chunk.position as MutableChunkPosition).set(chunkPosition)
             chunks[chunk.position] = chunk
             chunkManager.requestLoad(chunk)
         }
@@ -81,17 +94,23 @@ class ClientWorld(
     private fun doUnload(chunkPosition: ChunkPosition) {
         chunks.remove(chunkPosition)?.let {
             worldMeshingManager.notifyMeshUnneeded(it)
-            chunkManager.requestUnload(it)
-        }
 
-        chunkPosPool.with {
-            for (d in Direction.all) {
-                it.set(chunkPosition)
-                it.x += d.relX
-                it.y += d.relY
-                it.z += d.relZ
-                chunks[it]?.let { c -> c.adjacentLoadedChunks.decrementAndGet(); worldMeshingManager.notifyMeshDirty(c) }
+            chunkPosPool.with { pos ->
+                for (d in Direction.all) {
+                    pos.set(chunkPosition)
+                    pos.x += d.relX
+                    pos.y += d.relY
+                    pos.z += d.relZ
+                    chunks[pos]?.let { c ->
+                        if (it.loaded) {
+                            c.adjacentLoadedChunks.decrementAndGet()
+                        }
+                        worldMeshingManager.notifyMeshDirty(c)
+                    }
+                }
             }
+
+            chunkManager.requestUnload(it)
         }
     }
 
@@ -176,7 +195,7 @@ class ClientWorld(
                 FrontendProxy.textureAtlas.bound(1) {
                     GL20.glUniform1i(FrontendProxy.voxelShader.getUniform("atlasPage0"), 1)
                     chunks.values.asSequence()
-                        .filter { it.shouldRender }
+                        .filter { it.loaded }
                         .filter { it.mesh != null }
                         .sortedBy {  // Sort chunks in based on the direction that the camera is facing (dot product)
                             (it.position.x + 0.5) * Chunk.SIZE * camera.direction.x() +

@@ -13,7 +13,9 @@ import java.nio.IntBuffer
  * @constructor Creates a new Mesh
  */
 class Mesh(private var glDrawingMode: GLDrawingMode, private val useIBOs: Boolean = false) {
-    
+
+    var fullyInitialized = false
+        private set
     private val vao = VertexArrayObject(GL30.glGenVertexArrays())
     private val vbo = VertexBufferObject(GL15.glGenBuffers())
     private val ibo = ElementBufferObject(if (useIBOs) GL15.glGenBuffers() else 0) // 0 = null
@@ -48,6 +50,7 @@ class Mesh(private var glDrawingMode: GLDrawingMode, private val useIBOs: Boolea
                 offset += attribute.totalLength
             }
         }
+        fullyInitialized = true
     }
     
     fun setVertexData(data: FloatArray) {
@@ -84,6 +87,7 @@ class Mesh(private var glDrawingMode: GLDrawingMode, private val useIBOs: Boolea
                 offset += attribute.totalLength
             }
         }
+        fullyInitialized = true
     }
 
     fun setVertexData(data: IntBuffer) {
@@ -120,7 +124,7 @@ class Mesh(private var glDrawingMode: GLDrawingMode, private val useIBOs: Boolea
             if (useIBOs) {
                 GL11.glDrawElements(glDrawingMode.mode, numIndices, GL11.GL_UNSIGNED_INT, 0)
             } else {
-//                GL11.glDrawArrays(glDrawingMode.mode, 0, vertexCount)
+                GL11.glDrawArrays(glDrawingMode.mode, 0, vertexCount)
             }
         }
     }

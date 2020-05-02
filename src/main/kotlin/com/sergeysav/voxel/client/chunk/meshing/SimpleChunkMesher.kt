@@ -1,11 +1,7 @@
 package com.sergeysav.voxel.client.chunk.meshing
 
-import com.sergeysav.voxel.client.block.ClientBlockMesher
 import com.sergeysav.voxel.client.chunk.ClientChunk
-import com.sergeysav.voxel.common.data.Direction
 import com.sergeysav.voxel.client.gl.GLDataUsage
-import com.sergeysav.voxel.client.gl.GLDrawingMode
-import com.sergeysav.voxel.client.gl.Mesh
 import com.sergeysav.voxel.client.gl.UVec3VertexAttribute
 import com.sergeysav.voxel.client.resource.texture.TextureResource
 import com.sergeysav.voxel.common.Voxel
@@ -13,17 +9,19 @@ import com.sergeysav.voxel.common.block.Block
 import com.sergeysav.voxel.common.block.MutableBlockPosition
 import com.sergeysav.voxel.common.block.state.BlockState
 import com.sergeysav.voxel.common.chunk.Chunk
+import com.sergeysav.voxel.common.data.Direction
 import com.sergeysav.voxel.common.world.World
 import org.lwjgl.BufferUtils
 import java.nio.IntBuffer
-import kotlin.math.roundToInt
 
 /**
  * @author sergeys
  *
  * @constructor Creates a new AdjacentChunkMesher
  */
-class SimpleChunkMesher : ChunkMesher, ChunkMesherCallback {
+class SimpleChunkMesher(
+    private val shortCircuitCallback: (SimpleChunkMesher)->Unit
+) : ChunkMesher, ChunkMesherCallback {
 
     private var vertexData = BufferUtils.createIntBuffer(16*16*16*72)
     private var indexData = BufferUtils.createIntBuffer(16*16*16*36)
@@ -34,6 +32,7 @@ class SimpleChunkMesher : ChunkMesher, ChunkMesherCallback {
     private val blockPos = MutableBlockPosition()
     private val globalBlockPos = MutableBlockPosition()
     private val blockPos2 = MutableBlockPosition()
+    private val clientChunkPackedVertexDataAttribute = UVec3VertexAttribute("packedVertexData")
 
     override var free: Boolean = true
     override var ready: Boolean = false
@@ -69,24 +68,36 @@ class SimpleChunkMesher : ChunkMesher, ChunkMesherCallback {
             }
         }
 
-        vertexData.rewind()
-        indexData.rewind()
-        vertexData.limit(vertices * 3) // 3 data points per vertex
-        indexData.limit(indices)
-        ready = true
+        if (indices == 0 && chunk.isMeshEmpty) {
+            // Empty chunks, whose meshes were empty last time
+            ready = false
+            free = true
+            shortCircuitCallback(this)
+        } else {
+            vertexData.rewind()
+            indexData.rewind()
+            vertexData.limit(vertices * 3) // 3 data points per vertex
+            indexData.limit(indices)
+            ready = true
+        }
     }
 
     override fun applyMesh() {
         ready = false
 
-        if (chunk.mesh == null) {
-            chunk.mesh = Mesh(GLDrawingMode.TRIANGLES, true)
-            chunk.mesh?.setVertices(vertexData, GLDataUsage.STATIC, UVec3VertexAttribute("packedVertexData"))
-        } else {
-            chunk.mesh?.setVertexData(vertexData)
+        var mesh = chunk.mesh
+        if (mesh == null) {
+            mesh = ClientChunk.meshPool.get()
+            chunk.mesh = mesh
         }
+        if (!mesh.fullyInitialized) {
+            mesh.setVertices(vertexData, GLDataUsage.STATIC, clientChunkPackedVertexDataAttribute)
+        } else {
+            mesh.setVertexData(vertexData)
+        }
+        mesh.setIndexData(indexData, GLDataUsage.STATIC, indices)
 
-        chunk.mesh?.setIndexData(indexData, GLDataUsage.STATIC, indices)
+        chunk.isMeshEmpty = indices == 0
 
         free = true
     }
@@ -114,16 +125,16 @@ class SimpleChunkMesher : ChunkMesher, ChunkMesherCallback {
     ): Int {
         putVertex(
             vertexData,
-            (blockPos.x shl 12) + (x * 0xFFF).roundToInt(),
-            (blockPos.y shl 12) + (y * 0xFFF).roundToInt(),
-            (blockPos.z shl 12) + (z * 0xFFF).roundToInt(),
+            (blockPos.x shl 12) + (x * 0xFFF + 0.5).toInt(),
+            (blockPos.y shl 12) + (y * 0xFFF + 0.5).toInt(),
+            (blockPos.z shl 12) + (z * 0xFFF + 0.5).toInt(),
             texture.imageIndex,
             facing.textureAxis,
             rotation.ordinal,
             reflection.ordinal,
-            (0x7F * lightingR).roundToInt(),
-            (0x7F * lightingG).roundToInt(),
-            (0x7F * lightingB).roundToInt()
+            (0x7F * lightingR + 0.5).toInt(),
+            (0x7F * lightingG + 0.5).toInt(),
+            (0x7F * lightingB + 0.5).toInt()
         )
         return vertices++
     }

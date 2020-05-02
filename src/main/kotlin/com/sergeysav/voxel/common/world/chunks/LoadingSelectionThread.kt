@@ -12,6 +12,7 @@ import java.util.concurrent.BlockingQueue
  */
 class LoadingSelectionThread<C : Chunk>(
     private val loadSelectionStrategy: LoadSelectionStrategy<C>,
+    private val chunkReleaseCallback: (C)->Unit = {},
     queueSize: Int,
     private val loadQueue: BlockingQueue<C>,
     name: String
@@ -32,8 +33,16 @@ class LoadingSelectionThread<C : Chunk>(
 
         loadSelectionStrategy.clear()
         while (alive) {
-            addQueue.poll()?.let(loadSelectionStrategy::add)
-            removeQueue.poll()?.let(loadSelectionStrategy::remove)
+            do {
+                val queueElement = addQueue.poll()?.also(loadSelectionStrategy::add)
+            } while (queueElement != null)
+            do {
+                val queueElement = removeQueue.poll()
+                if (queueElement != null) {
+                    loadSelectionStrategy.remove(queueElement)
+                    chunkReleaseCallback(queueElement)
+                }
+            } while (queueElement != null)
 
             val c = loadSelectionStrategy.tryGetNext()
             if (c != null) {

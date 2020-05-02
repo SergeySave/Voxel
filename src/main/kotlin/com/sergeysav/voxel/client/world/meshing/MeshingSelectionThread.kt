@@ -32,8 +32,12 @@ class MeshingSelectionThread(
 
         meshSelectionStrategy.clear()
         while (alive) {
-            dirtyingQueue.poll()?.let(meshSelectionStrategy::add)
-            unDirtyingQueue.poll()?.let(meshSelectionStrategy::remove)
+            do {
+                val queueElement = unDirtyingQueue.poll()?.also(meshSelectionStrategy::remove)
+            } while (queueElement != null)
+            do {
+                val queueElement = dirtyingQueue.poll()?.also(meshSelectionStrategy::add)
+            } while (queueElement != null)
 
             val c = meshSelectionStrategy.tryGetNext()
             if (c != null) {

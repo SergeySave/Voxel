@@ -10,10 +10,13 @@ import com.sergeysav.voxel.common.world.generator.ChunkGenerator
  */
 class SimpleChunkManager<C : Chunk>(private val chunkGenerator: ChunkGenerator<in Chunk>) : ChunkManager<C> {
 
+    private lateinit var releaseCallback: (C) -> Unit
     private lateinit var callback: (C) -> Unit
     private val chunks = mutableSetOf<C>()
+    private val toRelease = mutableSetOf<C>()
 
-    override fun initialize(callback: (C) -> Unit) {
+    override fun initialize(chunkReleaseCallback: (C) -> Unit, callback: (C) -> Unit) {
+        this.releaseCallback = chunkReleaseCallback
         this.callback = callback
     }
 
@@ -23,11 +26,14 @@ class SimpleChunkManager<C : Chunk>(private val chunkGenerator: ChunkGenerator<i
     }
 
     override fun requestUnload(chunk: C) {
+        toRelease.add(chunk)
     }
 
     override fun update() {
         chunks.forEach { callback(it) }
         chunks.clear()
+        toRelease.forEach(releaseCallback)
+        toRelease.clear()
     }
 
     override fun cleanup() {

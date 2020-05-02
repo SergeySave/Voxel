@@ -1,12 +1,9 @@
 package com.sergeysav.voxel.common.world.loading.selection
 
-import com.sergeysav.voxel.client.chunk.ClientChunk
 import com.sergeysav.voxel.common.block.BlockPosition
 import com.sergeysav.voxel.common.chunk.Chunk
-import com.sergeysav.voxel.common.chunk.ChunkPosition
 import com.sergeysav.voxel.common.math.square
 import mu.KotlinLogging
-import kotlin.random.Random
 
 /**
  * @author sergeys
@@ -16,7 +13,7 @@ import kotlin.random.Random
 class PriorityLoadSelectionStrategy<C : Chunk>(private val blockPos: BlockPosition) : LoadSelectionStrategy<C> {
 
     private val log = KotlinLogging.logger {  }
-    private val chunks = mutableSetOf<C>()
+    private val chunks = LinkedHashSet<C>(1000, 0.75f)
 
     init {
         log.trace { "Initializing World Load Selection Strategy" }
@@ -41,7 +38,16 @@ class PriorityLoadSelectionStrategy<C : Chunk>(private val blockPos: BlockPositi
 
 
     override fun tryGetNext(): C? {
-        return if (chunks.isNotEmpty()) chunks.minBy(::mapFunc) else null
+        var minVal = Double.POSITIVE_INFINITY
+        var minChunk: C? = null
+        for (chunk in chunks) {
+            val chunkVal = mapFunc(chunk)
+            if (chunkVal < minVal) {
+                minChunk = chunk
+                minVal = chunkVal
+            }
+        }
+        return minChunk
     }
 
     override fun clear() {

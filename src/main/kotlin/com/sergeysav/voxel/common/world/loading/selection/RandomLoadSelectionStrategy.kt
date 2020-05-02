@@ -11,7 +11,7 @@ import mu.KotlinLogging
 class RandomLoadSelectionStrategy<C : Chunk> : LoadSelectionStrategy<C> {
 
     private val log = KotlinLogging.logger {  }
-    private val chunks = mutableSetOf<C>()
+    private val chunks = LinkedHashSet<C>(1000, 0.75f)
 
     init {
         log.trace { "Initializing World Load Selection Strategy" }

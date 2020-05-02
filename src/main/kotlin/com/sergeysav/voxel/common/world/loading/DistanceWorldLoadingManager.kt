@@ -12,6 +12,7 @@ import com.sergeysav.voxel.common.world.World
  *
  * @constructor Creates a new DistanceWorldLoadingManager
  */
+@Deprecated("Use a SimpleUnionWorldLoadingManager with a DistanceWorldLoadingStrategy")
 class DistanceWorldLoadingManager : WorldLoadingManager<Chunk, World<Chunk>> {
 
     private val baseCoords = MutableBlockPosition()

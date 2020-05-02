@@ -7,7 +7,7 @@ import com.sergeysav.voxel.common.chunk.Chunk
  */
 interface ChunkManager<C : Chunk> {
 
-    fun initialize(callback: (C)->Unit)
+    fun initialize(chunkReleaseCallback: (C) -> Unit, callback: (C)->Unit)
 
     fun requestLoad(chunk: C)
     fun requestUnload(chunk: C)

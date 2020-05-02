@@ -5,7 +5,6 @@ import com.sergeysav.voxel.client.chunk.ClientChunk
 import com.sergeysav.voxel.client.chunk.meshing.SimpleChunkMesher
 import com.sergeysav.voxel.client.world.ClientWorld
 import com.sergeysav.voxel.client.world.meshing.selection.MeshSelectionStrategy
-import com.sergeysav.voxel.client.world.meshing.selection.RandomMeshSelectionStrategy
 import mu.KotlinLogging
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.BlockingQueue
@@ -25,9 +24,9 @@ class SimpleThreadedMeshingManager(
     private val log = KotlinLogging.logger {  }
     private var world: ClientWorld? = null
     private var alive = true
-    private val meshers: Array<ChunkMesher> = Array(meshesPerFrame) { SimpleChunkMesher() }
     private val dirtyQueue: BlockingQueue<ClientChunk> = ArrayBlockingQueue(meshesPerFrame)
     private val mesherQueue: BlockingQueue<ChunkMesher> = ArrayBlockingQueue(meshesPerFrame)
+    private val meshers: Array<ChunkMesher> = Array(meshesPerFrame) { SimpleChunkMesher(mesherQueue::put) }
     private val selectionThread = MeshingSelectionThread(dirtyQueueSize, dirtyQueue, meshSelectionStrategy, "Mesher Selection Thread")
     private val threads = Array(parallelism) { MeshingTaskThread(mesherQueue, dirtyQueue, "Mesher Thread $it") }
 
@@ -43,7 +42,7 @@ class SimpleThreadedMeshingManager(
     override fun getQueueSize(): Int = meshSelectionStrategy.currentSize()
 
     override fun notifyMeshDirty(chunk: ClientChunk) {
-        if (chunk.shouldRender) {
+        if (chunk.loaded) {
             selectionThread.setDirty(chunk)
         }
     }
@@ -54,9 +53,11 @@ class SimpleThreadedMeshingManager(
 
     override fun updateWorldMeshing(world: ClientWorld) {
         if (world != this.world) {
-            threads.forEach { it.world = world }
+            for (thread in threads) {
+                thread.world = world
+            }
+            this.world = world
         }
-        this.world = world
 
         for (m in meshers) {
             if (m.ready) {

@@ -20,7 +20,7 @@ class DebugUI : GuiWindow("Debug") {
 
         nkEditing(gui) {
             window.background.hidden {
-                window(0f, 0f, 200f, 20*4f,
+                window(0f, 0f, 400f, 20*5f,
                     Nuklear.NK_WINDOW_NO_INPUT or
                             Nuklear.NK_WINDOW_ROM or
                             Nuklear.NK_WINDOW_NO_SCROLLBAR) {
@@ -35,6 +35,9 @@ class DebugUI : GuiWindow("Debug") {
                     }
                     dynamicRow(1, 15f) {
                         label(String.format("Loading Queue: %d", loadingQueue))
+                    }
+                    dynamicRow(1, 15f) {
+                        label(String.format("Memory: %.2f/%.2f (MiB)", (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024.0 / 1024.0, Runtime.getRuntime().totalMemory() / 1024.0 / 1024.0))
                     }
                 }
             }

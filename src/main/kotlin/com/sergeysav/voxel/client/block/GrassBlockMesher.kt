@@ -30,7 +30,7 @@ class GrassBlockMesher<B : Block<out S>, S : BlockState>(
     override fun getAxisReflection(pos: BlockPosition, block: B, state: S, direction: Direction) = when (direction) {
         Direction.Up -> super.getAxisReflection(pos, block, state, direction)
         Direction.Down -> super.getAxisReflection(pos, block, state, direction)
-        else -> if(Random(getSeed(pos, block, state, direction, 2)).nextBoolean()) {
+        else -> if(random(pos, block, state, direction, 2) > 0.5) {
             BlockTextureReflection.NO_REFLECT
         } else {
             BlockTextureReflection.X_REFLECT

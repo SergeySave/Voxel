@@ -15,7 +15,7 @@ import kotlin.random.Random
 class PriorityMeshSelectionStrategy(private val blockPos: BlockPosition) : MeshSelectionStrategy {
 
     private val log = KotlinLogging.logger {  }
-    private val chunks = mutableSetOf<ClientChunk>()
+    private val chunks = LinkedHashSet<ClientChunk>(1000, 0.75f)
 
     init {
         log.trace { "Initializing Mesh Selection Strategy" }
@@ -32,18 +32,24 @@ class PriorityMeshSelectionStrategy(private val blockPos: BlockPosition) : MeshS
     }
 
     private fun mapFunc(chunk: ClientChunk): Double {
-        return (if (chunk.mesh == null) 0 else 1000) +
-                50 * Random.nextDouble() -
-                300 * chunk.adjacentLoadedChunks.get() +
+        return 50 * Random.nextDouble() -
+                1000 * chunk.adjacentLoadedChunks.get() +
                 70 * (((chunk.position.x + 0.5) - blockPos.x / Chunk.SIZE.toDouble()).square() +
                 ((chunk.position.y + 0.5) - blockPos.y / Chunk.SIZE.toDouble()).square() +
                 ((chunk.position.z + 0.5) - blockPos.z / Chunk.SIZE.toDouble()).square())
     }
 
     override fun tryGetNext(): ClientChunk? {
-        return if (chunks.isNotEmpty()) {
-            chunks.minBy(::mapFunc)
-        } else null
+        var minVal = Double.POSITIVE_INFINITY
+        var minChunk: ClientChunk? = null
+        for (chunk in chunks) {
+            val chunkVal = mapFunc(chunk)
+            if (chunkVal < minVal) {
+                minChunk = chunk
+                minVal = chunkVal
+            }
+        }
+        return minChunk
     }
 
     override fun clear() {

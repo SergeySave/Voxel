@@ -14,6 +14,14 @@ import com.sergeysav.voxel.common.block.state.DefaultBlockState
 open class Chunk(val position: ChunkPosition) {
     private val blocks = Array<Block<*>>(SIZE * SIZE * SIZE) { Air }
     private val states = Array<BlockState>(SIZE * SIZE * SIZE) { DefaultBlockState }
+    private var version = 0
+
+    open fun reset() {
+        for (i in 0 until SIZE * SIZE * SIZE) {
+            blocks[i] = Air
+            states[i] = DefaultBlockState
+        }
+    }
 
     fun <T : BlockState> setBlock(localPosition: BlockPosition, block: Block<T>, state: T) {
         blocks[localPosition.x + localPosition.y * SIZE + localPosition.z * SIZE * SIZE] = block

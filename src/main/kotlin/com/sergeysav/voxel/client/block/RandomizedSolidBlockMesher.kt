@@ -7,7 +7,10 @@ import com.sergeysav.voxel.common.block.Block
 import com.sergeysav.voxel.common.block.BlockPosition
 import com.sergeysav.voxel.common.block.state.BlockState
 import com.sergeysav.voxel.common.data.Direction
-import kotlin.random.Random
+import com.sergeysav.voxel.common.pool.ConcurrentObjectPool
+import com.sergeysav.voxel.common.pool.LocalObjectPool
+import com.sergeysav.voxel.common.pool.with
+import java.util.Random
 
 /**
  * @author sergeys
@@ -20,13 +23,22 @@ open class RandomizedSolidBlockMesher<B : Block<out S>, S : BlockState>(
 
     override val opaque: Boolean = true
 
-    protected fun getSeed(pos: BlockPosition, block: B, state: S, direction: Direction, salt: Int) = (((pos.hashCode() * 31 + block.hashCode()) * 31 + state.hashCode()) * 31 + direction.hashCode()) * 31 + salt
+    private fun getSeed(pos: BlockPosition, block: B, state: S, direction: Direction, salt: Long) = (((pos.hashCode() * 31L + block.hashCode()) * 31L + state.hashCode()) * 31L + direction.hashCode()) * 31L + salt
+
+    protected fun random(pos: BlockPosition, block: B, state: S, direction: Direction, salt: Long) = randomPool.with {
+        it.setSeed(getSeed(pos, block, state, direction, salt))
+        it.nextDouble()
+    }
 
     override fun getAxisTexture(pos: BlockPosition, block: B, state: S, direction: Direction): TextureResource = texture
 
     override fun getAxisRotation(pos: BlockPosition, block: B, state: S, direction: Direction): BlockTextureRotation
-            = BlockTextureRotation.values().random(Random(getSeed(pos, block, state, direction, 0)))
+            = BlockTextureRotation.values()[(random(pos, block, state, direction, 0L) * BlockTextureRotation.values().size).toInt()]
 
     override fun getAxisReflection(pos: BlockPosition, block: B, state: S, direction: Direction): BlockTextureReflection
-            = BlockTextureReflection.values().random(Random(getSeed(pos, block, state, direction, 1)))
+            = BlockTextureReflection.values()[(random(pos, block, state, direction, 1L) * BlockTextureReflection.values().size).toInt()]
+
+    companion object {
+        val randomPool = LocalObjectPool({ Random() }, 1)
+    }
 }

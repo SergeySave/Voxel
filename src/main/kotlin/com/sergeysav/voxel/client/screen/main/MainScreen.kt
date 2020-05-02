@@ -45,17 +45,20 @@ class MainScreen : Screen {
     private val cameraController = CameraController(Camera(Math.toRadians(45.0).toFloat(), 1f, 1/16f, 2000f))
     private lateinit var application: Frontend
     private val blockPos = MutableBlockPosition()
-    private val distanceWorldLoadingStrategy = DistanceWorldLoadingStrategy(blockPos, 8)
+    private val distanceWorldLoadingStrategy = DistanceWorldLoadingStrategy(blockPos, 10)
     private val meshingManager = SimpleThreadedMeshingManager(
         PriorityMeshSelectionStrategy(blockPos),
-        parallelism = 4,
-        meshesPerFrame = 32
+        parallelism = 8,
+        meshesPerFrame = 64,
+        dirtyQueueSize = 256
     )
     private val chunkManager = SimpleThreadedChunkManager<ClientChunk>(
         PriorityLoadSelectionStrategy(blockPos),
         DevTestGenerator1(),
         parallelism = 4,
-        chunksPerFrame = 32
+        chunksPerFrame = 64,
+        loadQueueSize = 256,
+        releaseQueueSize = 512
     )
     private val world = ClientWorld(
         SimpleUnionWorldLoadingManager(distanceWorldLoadingStrategy),
@@ -207,8 +210,6 @@ class MainScreen : Screen {
                 crosshairMesh.draw()
             }
         }
-
-
 
         playerInput.mouseButton1JustDown = false
         playerInput.mouseButton1JustUp = false
