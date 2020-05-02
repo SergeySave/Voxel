@@ -53,7 +53,7 @@ class ClientWorld(
     private val raycastResultPool = LocalObjectPool({ RaycastResult(false, RaycastResult.RaycastOutcome.COMPLETED, MutableBlockPosition(), null, null) }, 1)
     private val chunks = mutableMapOf<ChunkPosition, ClientChunk>()
     private val cameraAABBChecker = CameraAABBChecker()
-    private val chunkPool: ObjectPool<ClientChunk> = SynchronizedObjectPool({ ClientChunk(MutableChunkPosition()) }, 128)
+    private val chunkPool: ObjectPool<ClientChunk> = SynchronizedObjectPool({ ClientChunk(MutableChunkPosition()) }, 256)
 
     init {
         log.info { "Initializing Client World" }
