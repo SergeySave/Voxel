@@ -19,6 +19,7 @@ import com.sergeysav.voxel.client.world.ClientWorld
 import com.sergeysav.voxel.client.world.meshing.SimpleThreadedMeshingManager
 import com.sergeysav.voxel.client.world.meshing.selection.PriorityMeshSelectionStrategy
 import com.sergeysav.voxel.common.IOUtil
+import com.sergeysav.voxel.common.block.MutableBlockPosition
 import com.sergeysav.voxel.common.bound
 import com.sergeysav.voxel.common.chunk.MutableChunkPosition
 import com.sergeysav.voxel.common.math.divisionQuotient
@@ -26,6 +27,9 @@ import com.sergeysav.voxel.common.world.chunks.SimpleThreadedChunkManager
 import com.sergeysav.voxel.common.world.generator.DevTestGenerator1
 import com.sergeysav.voxel.common.world.loading.DistanceWorldLoadingStrategy
 import com.sergeysav.voxel.common.world.loading.SimpleUnionWorldLoadingManager
+import com.sergeysav.voxel.common.world.loading.selection.FirstLoadSelectionStrategy
+import com.sergeysav.voxel.common.world.loading.selection.PriorityLoadSelectionStrategy
+import com.sergeysav.voxel.common.world.loading.selection.RandomLoadSelectionStrategy
 import mu.KotlinLogging
 import org.joml.Vector3f
 import org.lwjgl.glfw.GLFW
@@ -43,11 +47,11 @@ class MainScreen : Screen {
     private val log = KotlinLogging.logger {  }
     private val cameraController = CameraController(Camera(Math.toRadians(45.0).toFloat(), 1f, 1/16f, 2000f))
     private lateinit var application: Frontend
-    private val chunkCoord = MutableChunkPosition()
-    private val distanceWorldLoadingStrategy = DistanceWorldLoadingStrategy(chunkCoord, 8)
+    private val blockPos = MutableBlockPosition()
+    private val distanceWorldLoadingStrategy = DistanceWorldLoadingStrategy(blockPos, 8)
     private val world = ClientWorld(SimpleUnionWorldLoadingManager(distanceWorldLoadingStrategy),
-        SimpleThreadedMeshingManager(PriorityMeshSelectionStrategy(chunkCoord), parallelism = 2, meshesPerFrame = 16),
-        SimpleThreadedChunkManager(DevTestGenerator1(), parallelism = 4, chunksPerFrame = 32)
+        SimpleThreadedMeshingManager(PriorityMeshSelectionStrategy(blockPos), parallelism = 2, meshesPerFrame = 16),
+        SimpleThreadedChunkManager(PriorityLoadSelectionStrategy(blockPos), DevTestGenerator1(), parallelism = 4, chunksPerFrame = 32)
     )
     private var callback: ((Double, Double)->Boolean)? = null
     private var firstMouse = true
@@ -176,9 +180,9 @@ class MainScreen : Screen {
             update()
         }
 
-        chunkCoord.y = cameraController.camera.position.y().roundToInt().divisionQuotient(Chunk.SIZE)
-        chunkCoord.x = cameraController.camera.position.x().roundToInt().divisionQuotient(Chunk.SIZE)
-        chunkCoord.z = cameraController.camera.position.z().roundToInt().divisionQuotient(Chunk.SIZE)
+        blockPos.y = cameraController.camera.position.y().roundToInt()//.divisionQuotient(Chunk.SIZE)
+        blockPos.x = cameraController.camera.position.x().roundToInt()//.divisionQuotient(Chunk.SIZE)
+        blockPos.z = cameraController.camera.position.z().roundToInt()//.divisionQuotient(Chunk.SIZE)
 
         world.update()
         world.draw(cameraController.camera, playerInput)

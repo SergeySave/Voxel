@@ -1,6 +1,7 @@
 package com.sergeysav.voxel.common.world.chunks
 
 import com.sergeysav.voxel.common.chunk.Chunk
+import com.sergeysav.voxel.common.world.loading.selection.LoadSelectionStrategy
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.BlockingQueue
 
@@ -10,6 +11,7 @@ import java.util.concurrent.BlockingQueue
  * @constructor Creates a new LoadingSelectionThread
  */
 class LoadingSelectionThread<C : Chunk>(
+    private val loadSelectionStrategy: LoadSelectionStrategy<C>,
     queueSize: Int,
     private val loadQueue: BlockingQueue<C>,
     name: String
@@ -22,26 +24,25 @@ class LoadingSelectionThread<C : Chunk>(
         this.isDaemon = true
     }
 
-    private val chunks = mutableSetOf<C>()
     private val addQueue: BlockingQueue<C> = ArrayBlockingQueue(queueSize)
     private val removeQueue: BlockingQueue<C> = ArrayBlockingQueue(queueSize)
 
     override fun run() {
         alive = true
 
-        chunks.clear()
+        loadSelectionStrategy.clear()
         while (alive) {
-            addQueue.poll()?.let(chunks::add)
-            removeQueue.poll()?.let(chunks::remove)
+            addQueue.poll()?.let(loadSelectionStrategy::add)
+            removeQueue.poll()?.let(loadSelectionStrategy::remove)
 
-            val c = if (chunks.isNotEmpty()) chunks.random() else null
+            val c = loadSelectionStrategy.tryGetNext()
             if (c != null) {
                 if (loadQueue.offer(c)) {
-                    chunks.remove(c)
+                    loadSelectionStrategy.remove(c)
                 }
             }
         }
-        chunks.clear()
+        loadSelectionStrategy.clear()
     }
 
     fun cancel() {

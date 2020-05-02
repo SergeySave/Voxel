@@ -1,5 +1,7 @@
 package com.sergeysav.voxel.common.world.loading
 
+import com.sergeysav.voxel.common.block.BlockPosition
+import com.sergeysav.voxel.common.block.MutableBlockPosition
 import com.sergeysav.voxel.common.chunk.Chunk
 import com.sergeysav.voxel.common.chunk.ChunkPosition
 import com.sergeysav.voxel.common.chunk.MutableChunkPosition
@@ -12,15 +14,15 @@ import com.sergeysav.voxel.common.world.World
  */
 class DistanceWorldLoadingManager : WorldLoadingManager<Chunk, World<Chunk>> {
 
-    private val baseCoords = MutableChunkPosition()
+    private val baseCoords = MutableBlockPosition()
     private val strategy = DistanceWorldLoadingStrategy(baseCoords, 0)
 
     fun setLoadingDistance(chunks: Int) {
         strategy.distance = chunks
     }
 
-    fun setCenter(chunkPosition: ChunkPosition) {
-        baseCoords.set(chunkPosition)
+    fun setCenter(blockPos: BlockPosition) {
+        baseCoords.set(blockPos)
     }
 
     override fun updateWorldLoading(

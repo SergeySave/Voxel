@@ -1,8 +1,8 @@
 package com.sergeysav.voxel.client.world.meshing.selection
 
 import com.sergeysav.voxel.client.chunk.ClientChunk
-import com.sergeysav.voxel.common.chunk.ChunkPosition
-import com.sergeysav.voxel.common.chunk.MutableChunkPosition
+import com.sergeysav.voxel.common.block.BlockPosition
+import com.sergeysav.voxel.common.chunk.Chunk
 import com.sergeysav.voxel.common.math.square
 import mu.KotlinLogging
 import kotlin.random.Random
@@ -12,7 +12,7 @@ import kotlin.random.Random
  *
  * @constructor Creates a new PriorityMeshSelectionStrategy
  */
-class PriorityMeshSelectionStrategy(private val chunkPosition: ChunkPosition) : MeshSelectionStrategy {
+class PriorityMeshSelectionStrategy(private val blockPos: BlockPosition) : MeshSelectionStrategy {
 
     private val log = KotlinLogging.logger {  }
     private val chunks = mutableSetOf<ClientChunk>()
@@ -32,10 +32,10 @@ class PriorityMeshSelectionStrategy(private val chunkPosition: ChunkPosition) : 
     private fun mapFunc(chunk: ClientChunk): Double {
         return (if (chunk.mesh == null) 0 else 1000) +
                 50 * Random.nextDouble() -
-                100 * chunk.adjacentLoadedChunks.get() +
-                50 * ((chunkPosition.x - chunk.position.x).square() +
-                (chunkPosition.y - chunk.position.y).square() +
-                (chunkPosition.z - chunk.position.z).square())
+                300 * chunk.adjacentLoadedChunks.get() +
+                70 * (((chunk.position.x + 0.5) - blockPos.x / Chunk.SIZE.toDouble()).square() +
+                ((chunk.position.y + 0.5) - blockPos.y / Chunk.SIZE.toDouble()).square() +
+                ((chunk.position.z + 0.5) - blockPos.z / Chunk.SIZE.toDouble()).square())
     }
 
     override fun tryGetNext(): ClientChunk? {

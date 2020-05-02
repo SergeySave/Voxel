@@ -3,6 +3,7 @@ package com.sergeysav.voxel.common.world.chunks
 import com.sergeysav.voxel.client.world.meshing.MeshingTaskThread
 import com.sergeysav.voxel.common.chunk.Chunk
 import com.sergeysav.voxel.common.world.generator.ChunkGenerator
+import com.sergeysav.voxel.common.world.loading.selection.LoadSelectionStrategy
 import mu.KotlinLogging
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.BlockingQueue
@@ -14,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * @constructor Creates a new SimpleThreadedChunkManager
  */
 class SimpleThreadedChunkManager<C : Chunk>(
+    loadSelectionStrategy: LoadSelectionStrategy<C>,
     chunkGenerator: ChunkGenerator<in Chunk>,
     parallelism: Int = 1,
     loadQueueSize: Int = 16,
@@ -23,7 +25,7 @@ class SimpleThreadedChunkManager<C : Chunk>(
     private val log = KotlinLogging.logger {  }
     private val loadQueue: BlockingQueue<C> = ArrayBlockingQueue(loadQueueSize)
     private val outputQueue: BlockingQueue<C> = ArrayBlockingQueue(chunksPerFrame)
-    private val selectionThread = LoadingSelectionThread(loadQueueSize, loadQueue, "Chunk Manager Selection Thread")
+    private val selectionThread = LoadingSelectionThread(loadSelectionStrategy, loadQueueSize, loadQueue, "Chunk Manager Selection Thread")
     private val threads = Array(parallelism) { LoadingTaskThread(loadQueue, chunkGenerator, ::doCallback, "Chunk Loading Thread $it") }
     private lateinit var callback: (C) -> Unit
 
