@@ -1,7 +1,7 @@
 package com.sergeysav.voxel.client
 
 import com.sergeysav.voxel.client.glfw.GLFWManager
-import com.sergeysav.voxel.client.screen.MainScreen
+import com.sergeysav.voxel.client.screen.main.MainScreen
 import com.sergeysav.voxel.client.screen.Screen
 import mu.KotlinLogging
 import org.lwjgl.opengl.GL11

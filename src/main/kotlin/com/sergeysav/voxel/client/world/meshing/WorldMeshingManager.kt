@@ -8,6 +8,8 @@ import com.sergeysav.voxel.common.world.World
  */
 interface WorldMeshingManager<in W : World<ClientChunk>> {
 
+    fun getQueueSize(): Int
+
     fun notifyMeshDirty(chunk: ClientChunk)
 
     fun notifyMeshUnneeded(chunk: ClientChunk)

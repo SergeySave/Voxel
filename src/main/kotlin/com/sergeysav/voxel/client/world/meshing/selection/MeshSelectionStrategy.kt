@@ -7,6 +7,8 @@ import com.sergeysav.voxel.client.chunk.ClientChunk
  */
 interface MeshSelectionStrategy {
 
+    fun currentSize(): Int
+
     fun add(chunk: ClientChunk)
     fun remove(chunk: ClientChunk)
 

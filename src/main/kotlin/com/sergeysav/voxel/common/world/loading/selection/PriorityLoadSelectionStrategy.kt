@@ -22,6 +22,8 @@ class PriorityLoadSelectionStrategy<C : Chunk>(private val blockPos: BlockPositi
         log.trace { "Initializing World Load Selection Strategy" }
     }
 
+    override fun currentSize(): Int = chunks.size
+
     override fun add(chunk: C) {
         chunks.add(chunk)
     }

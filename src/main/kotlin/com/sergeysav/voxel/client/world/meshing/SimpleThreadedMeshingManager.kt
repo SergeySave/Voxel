@@ -15,8 +15,12 @@ import java.util.concurrent.BlockingQueue
  *
  * @constructor Creates a new ThreadedMeshingManager
  */
-class SimpleThreadedMeshingManager(meshSelectionStrategy: MeshSelectionStrategy, parallelism: Int = 1, meshesPerFrame: Int = 32, dirtyQueueSize: Int = 16) :
-    WorldMeshingManager<ClientWorld> {
+class SimpleThreadedMeshingManager(
+    private val meshSelectionStrategy: MeshSelectionStrategy,
+    parallelism: Int = 1,
+    meshesPerFrame: Int = 32,
+    dirtyQueueSize: Int = meshesPerFrame
+) : WorldMeshingManager<ClientWorld> {
 
     private val log = KotlinLogging.logger {  }
     private var world: ClientWorld? = null
@@ -28,13 +32,15 @@ class SimpleThreadedMeshingManager(meshSelectionStrategy: MeshSelectionStrategy,
     private val threads = Array(parallelism) { MeshingTaskThread(mesherQueue, dirtyQueue, "Mesher Thread $it") }
 
     init {
-        log.trace { "Initializing World Meshing Manager" }
+        log.trace { "Initializing World Meshing Manager with $parallelism Threads, $meshesPerFrame Meshes per Thread, and $dirtyQueueSize Queue" }
         for (m in meshers) {
             mesherQueue.put(m)
         }
         selectionThread.start()
         threads.forEach(MeshingTaskThread::start)
     }
+
+    override fun getQueueSize(): Int = meshSelectionStrategy.currentSize()
 
     override fun notifyMeshDirty(chunk: ClientChunk) {
         if (chunk.shouldRender) {

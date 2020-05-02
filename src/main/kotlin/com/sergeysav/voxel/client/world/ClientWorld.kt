@@ -175,20 +175,25 @@ class ClientWorld(
                 GL20.glUniform1i(FrontendProxy.voxelShader.getUniform("assetData"), 0)
                 FrontendProxy.textureAtlas.bound(1) {
                     GL20.glUniform1i(FrontendProxy.voxelShader.getUniform("atlasPage0"), 1)
-                    chunks.forEach { (_, c) ->
-                        val mesh = c.mesh
-                        if (mesh != null) {
+                    chunks.values.asSequence()
+                        .filter { it.shouldRender }
+                        .filter { it.mesh != null }
+                        .sortedBy {  // Sort chunks in based on the direction that the camera is facing (dot product)
+                            (it.position.x + 0.5) * Chunk.SIZE * camera.direction.x() +
+                                    (it.position.y + 0.5) * Chunk.SIZE * camera.direction.y() +
+                                    (it.position.z + 0.5) * Chunk.SIZE * camera.direction.z()
+                        }.forEach { c ->
+                            val mesh = c.mesh
                             val x = c.position.x * Chunk.SIZE.toFloat()
                             val y = c.position.y * Chunk.SIZE.toFloat()
                             val z = c.position.z * Chunk.SIZE.toFloat()
-                            if (cameraAABBChecker.isAABBinCamera(x, y, z, 16f, 16f, 16f)) {
+                            if (mesh != null && cameraAABBChecker.isAABBinCamera(x, y, z, 16f, 16f, 16f)) {
                                 model.identity()
                                 model.translate(x, y, z)
                                 model.setUniform(FrontendProxy.voxelShader.getUniform("uModel"))
                                 mesh.draw()
                             }
                         }
-                    }
                 }
             }
         }

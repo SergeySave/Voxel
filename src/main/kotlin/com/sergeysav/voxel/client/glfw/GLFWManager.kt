@@ -1,10 +1,12 @@
 package com.sergeysav.voxel.client.glfw
 
+import com.sergeysav.voxel.client.nuklear.Gui
 import mu.KotlinLogging
 import org.lwjgl.Version
 import org.lwjgl.glfw.Callbacks
 import org.lwjgl.glfw.GLFW
 import org.lwjgl.glfw.GLFWErrorCallback
+import org.lwjgl.nuklear.Nuklear
 import org.lwjgl.opengl.ARBDebugOutput
 import org.lwjgl.opengl.GL
 import org.lwjgl.opengl.GL11C
@@ -41,6 +43,7 @@ abstract class GLFWManager(width: Int, height: Int): InputManager() {
         private set
 
     private var debugProc: Callback? = null
+    lateinit var gui: Gui
 
     fun run(title: String) {
         log.info { "LWJGL ${Version.getVersion()} GLFWManager Starting" }
@@ -53,6 +56,7 @@ abstract class GLFWManager(width: Int, height: Int): InputManager() {
         } finally {
             log.debug { "Closing" }
             cleanup()
+            gui.cleanup()
             Callbacks.glfwFreeCallbacks(window)
             debugProc?.free()
             GLFW.glfwDestroyWindow(window)
@@ -152,6 +156,8 @@ abstract class GLFWManager(width: Int, height: Int): InputManager() {
 
         GLFW.glfwSetCharCallback(window) { _, codePoint -> handleCharacterCallback(codePoint) }
 
+        gui = Gui(this, "/font/Inconsolata/Inconsolata-VariableFont_wdth,wght.ttf")
+
         log.trace { "Setting window contexts" }
         // Get the thread stack and push a new frame
         MemoryStack.stackPush().use { stack ->
@@ -202,9 +208,10 @@ abstract class GLFWManager(width: Int, height: Int): InputManager() {
                 GL11C.glViewport(0, 0, fWidth, fHeight)
             }
 
-            checkForInputEvents()
+            gui.doRegisterInputEvents()
 
             render()
+            gui.render(Nuklear.NK_ANTI_ALIASING_ON, 512 * 1024, 128 * 1024, width, height, fWidth, fHeight)
 
             GLFW.glfwSwapBuffers(window) // swap the color bufferobjects
         }

@@ -11,6 +11,8 @@ class FirstMeshSelectionStrategy : MeshSelectionStrategy {
 
     private val chunks = mutableSetOf<ClientChunk>()
 
+    override fun currentSize(): Int = chunks.size
+
     override fun add(chunk: ClientChunk) {
         chunks.add(chunk)
     }

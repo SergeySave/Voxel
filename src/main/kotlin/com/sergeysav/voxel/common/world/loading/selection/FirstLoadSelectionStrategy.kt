@@ -17,6 +17,8 @@ class FirstLoadSelectionStrategy<C : Chunk> : LoadSelectionStrategy<C> {
         log.trace { "Initializing World Load Selection Strategy" }
     }
 
+    override fun currentSize(): Int = chunks.size
+
     override fun add(chunk: C) {
         chunks.add(chunk)
     }

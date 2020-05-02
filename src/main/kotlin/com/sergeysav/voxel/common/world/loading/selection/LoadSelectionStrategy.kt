@@ -7,6 +7,8 @@ import com.sergeysav.voxel.common.chunk.Chunk
  */
 interface LoadSelectionStrategy<C : Chunk> {
 
+    fun currentSize(): Int
+
     fun add(chunk: C)
     fun remove(chunk: C)
 

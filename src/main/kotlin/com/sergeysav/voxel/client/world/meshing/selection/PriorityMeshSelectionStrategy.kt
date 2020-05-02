@@ -21,6 +21,8 @@ class PriorityMeshSelectionStrategy(private val blockPos: BlockPosition) : MeshS
         log.trace { "Initializing Mesh Selection Strategy" }
     }
 
+    override fun currentSize(): Int = chunks.size
+
     override fun add(chunk: ClientChunk) {
         chunks.add(chunk)
     }

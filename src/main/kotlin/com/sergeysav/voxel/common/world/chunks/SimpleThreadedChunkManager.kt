@@ -15,11 +15,11 @@ import java.util.concurrent.atomic.AtomicInteger
  * @constructor Creates a new SimpleThreadedChunkManager
  */
 class SimpleThreadedChunkManager<C : Chunk>(
-    loadSelectionStrategy: LoadSelectionStrategy<C>,
+    private val loadSelectionStrategy: LoadSelectionStrategy<C>,
     chunkGenerator: ChunkGenerator<in Chunk>,
-    parallelism: Int = 1,
-    loadQueueSize: Int = 16,
-    chunksPerFrame: Int = 16
+    private val parallelism: Int = 1,
+    private val chunksPerFrame: Int = 16,
+    private val loadQueueSize: Int = chunksPerFrame
 ) : ChunkManager<C> {
 
     private val log = KotlinLogging.logger {  }
@@ -29,8 +29,10 @@ class SimpleThreadedChunkManager<C : Chunk>(
     private val threads = Array(parallelism) { LoadingTaskThread(loadQueue, chunkGenerator, ::doCallback, "Chunk Loading Thread $it") }
     private lateinit var callback: (C) -> Unit
 
+    fun getQueueSize() = loadSelectionStrategy.currentSize()
+
     override fun initialize(callback: (C) -> Unit) {
-        log.trace { "Initializing Chunk Manager" }
+        log.trace { "Initializing Chunk Manager with $parallelism Threads, $chunksPerFrame Meshes per Thread, and $loadQueueSize Queue" }
         this.callback = callback
         selectionThread.start()
         threads.forEach(LoadingTaskThread<C>::start)

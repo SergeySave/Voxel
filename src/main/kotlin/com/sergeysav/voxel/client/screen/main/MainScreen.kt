@@ -1,8 +1,9 @@
-package com.sergeysav.voxel.client.screen
+package com.sergeysav.voxel.client.screen.main
 
 import com.sergeysav.voxel.client.Frontend
 import com.sergeysav.voxel.client.camera.Camera
 import com.sergeysav.voxel.client.camera.CameraController
+import com.sergeysav.voxel.client.chunk.ClientChunk
 import com.sergeysav.voxel.client.gl.GLDataUsage
 import com.sergeysav.voxel.client.gl.GLDrawingMode
 import com.sergeysav.voxel.client.gl.Image
@@ -14,22 +15,18 @@ import com.sergeysav.voxel.client.gl.Vec2VertexAttribute
 import com.sergeysav.voxel.client.gl.bound
 import com.sergeysav.voxel.client.gl.createTexture
 import com.sergeysav.voxel.client.player.PlayerInput
-import com.sergeysav.voxel.common.chunk.Chunk
+import com.sergeysav.voxel.client.screen.Screen
 import com.sergeysav.voxel.client.world.ClientWorld
 import com.sergeysav.voxel.client.world.meshing.SimpleThreadedMeshingManager
 import com.sergeysav.voxel.client.world.meshing.selection.PriorityMeshSelectionStrategy
 import com.sergeysav.voxel.common.IOUtil
 import com.sergeysav.voxel.common.block.MutableBlockPosition
 import com.sergeysav.voxel.common.bound
-import com.sergeysav.voxel.common.chunk.MutableChunkPosition
-import com.sergeysav.voxel.common.math.divisionQuotient
 import com.sergeysav.voxel.common.world.chunks.SimpleThreadedChunkManager
 import com.sergeysav.voxel.common.world.generator.DevTestGenerator1
 import com.sergeysav.voxel.common.world.loading.DistanceWorldLoadingStrategy
 import com.sergeysav.voxel.common.world.loading.SimpleUnionWorldLoadingManager
-import com.sergeysav.voxel.common.world.loading.selection.FirstLoadSelectionStrategy
 import com.sergeysav.voxel.common.world.loading.selection.PriorityLoadSelectionStrategy
-import com.sergeysav.voxel.common.world.loading.selection.RandomLoadSelectionStrategy
 import mu.KotlinLogging
 import org.joml.Vector3f
 import org.lwjgl.glfw.GLFW
@@ -49,9 +46,21 @@ class MainScreen : Screen {
     private lateinit var application: Frontend
     private val blockPos = MutableBlockPosition()
     private val distanceWorldLoadingStrategy = DistanceWorldLoadingStrategy(blockPos, 8)
-    private val world = ClientWorld(SimpleUnionWorldLoadingManager(distanceWorldLoadingStrategy),
-        SimpleThreadedMeshingManager(PriorityMeshSelectionStrategy(blockPos), parallelism = 2, meshesPerFrame = 16),
-        SimpleThreadedChunkManager(PriorityLoadSelectionStrategy(blockPos), DevTestGenerator1(), parallelism = 4, chunksPerFrame = 32)
+    private val meshingManager = SimpleThreadedMeshingManager(
+        PriorityMeshSelectionStrategy(blockPos),
+        parallelism = 4,
+        meshesPerFrame = 32
+    )
+    private val chunkManager = SimpleThreadedChunkManager<ClientChunk>(
+        PriorityLoadSelectionStrategy(blockPos),
+        DevTestGenerator1(),
+        parallelism = 4,
+        chunksPerFrame = 32
+    )
+    private val world = ClientWorld(
+        SimpleUnionWorldLoadingManager(distanceWorldLoadingStrategy),
+        meshingManager,
+        chunkManager
     )
     private var callback: ((Double, Double)->Boolean)? = null
     private var firstMouse = true
@@ -71,6 +80,7 @@ class MainScreen : Screen {
     private val crosshairMesh = Mesh(GLDrawingMode.TRIANGLES, true)
     private val crosshairShader: ShaderProgram = ShaderProgram()
     private val crosshairTexture: Texture2D
+    private val debugUI = DebugUI()
 
     init {
         cameraController.setPos(0f, 10f, 0f)
@@ -152,6 +162,8 @@ class MainScreen : Screen {
     }
 
     override fun render(delta: Double) {
+        debugUI.layout(application.gui, 1/delta, meshingManager.getQueueSize(), chunkManager.getQueueSize())
+
         val speed = 0.2f
         val forwardBackward = speed * (if (application.isKeyPressed(GLFW.GLFW_KEY_W)) 1 else 0 + if (application.isKeyPressed(
                 GLFW.GLFW_KEY_S)) -1 else 0) * delta * 60
@@ -195,6 +207,8 @@ class MainScreen : Screen {
                 crosshairMesh.draw()
             }
         }
+
+
 
         playerInput.mouseButton1JustDown = false
         playerInput.mouseButton1JustUp = false
