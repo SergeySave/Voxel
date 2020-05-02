@@ -13,8 +13,7 @@ import com.sergeysav.voxel.common.world.World
 class DistanceWorldLoadingManager : WorldLoadingManager<Chunk, World<Chunk>> {
 
     private val baseCoords = MutableChunkPosition()
-    private val strategy =
-        DistanceWorldLoadingStrategy(baseCoords, 0)
+    private val strategy = DistanceWorldLoadingStrategy(baseCoords, 0)
 
     fun setLoadingDistance(chunks: Int) {
         strategy.distance = chunks

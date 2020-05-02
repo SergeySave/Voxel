@@ -1,9 +1,9 @@
 package com.sergeysav.voxel.client
 
-import com.sergeysav.voxel.client.block.AxialSolidBlockMesher
 import com.sergeysav.voxel.client.block.ClientBlockMesher
 import com.sergeysav.voxel.client.block.NoMeshBlockMesher
 import com.sergeysav.voxel.client.block.RandomizedSolidBlockMesher
+import com.sergeysav.voxel.client.block.GrassBlockMesher
 import com.sergeysav.voxel.client.block.SolidBlockMesher
 import com.sergeysav.voxel.client.gl.ShaderProgram
 import com.sergeysav.voxel.client.gl.Texture2D
@@ -15,6 +15,7 @@ import com.sergeysav.voxel.common.IOUtil
 import com.sergeysav.voxel.common.block.Block
 import com.sergeysav.voxel.common.block.impl.Air
 import com.sergeysav.voxel.common.block.impl.Dirt
+import com.sergeysav.voxel.common.block.impl.Grass
 import com.sergeysav.voxel.common.block.impl.Stone
 import com.sergeysav.voxel.common.block.impl.Test
 import com.sergeysav.voxel.common.block.state.BlockState
@@ -39,11 +40,12 @@ object FrontendProxy : CommonProxy() {
         registerBlockMesher(Air, NoMeshBlockMesher)
         registerBlockMesher(Dirt, RandomizedSolidBlockMesher(getTextureResource("dirt")))
         registerBlockMesher(Stone, RandomizedSolidBlockMesher(getTextureResource("stone")))
-        registerBlockMesher(Test, AxialSolidBlockMesher(
-            getTextureResource("grass_side"),
-            getTextureResource("test"),
-            getTextureResource("test")
+        registerBlockMesher(Grass, GrassBlockMesher(
+            up = getTextureResource("grass_top"),
+            down = getTextureResource("dirt"),
+            side = getTextureResource("grass_side")
         ))
+        registerBlockMesher(Test, SolidBlockMesher(getTextureResource("test")))
     }
 
     fun <B : Block<out S>, S : BlockState> registerBlockMesher(block: B, mesher: ClientBlockMesher<B, S>) {

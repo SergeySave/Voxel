@@ -20,7 +20,7 @@ open class RandomizedSolidBlockMesher<B : Block<out S>, S : BlockState>(
 
     override val opaque: Boolean = true
 
-    private fun getSeed(pos: BlockPosition, block: B, state: S, direction: Direction, salt: Int) = (((pos.hashCode() * 31 + block.hashCode()) * 31 + state.hashCode()) * 31 + direction.hashCode()) * 31 + salt
+    protected fun getSeed(pos: BlockPosition, block: B, state: S, direction: Direction, salt: Int) = (((pos.hashCode() * 31 + block.hashCode()) * 31 + state.hashCode()) * 31 + direction.hashCode()) * 31 + salt
 
     override fun getAxisTexture(pos: BlockPosition, block: B, state: S, direction: Direction): TextureResource = texture
 
