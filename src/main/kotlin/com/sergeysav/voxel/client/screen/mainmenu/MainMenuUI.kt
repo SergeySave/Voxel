@@ -5,6 +5,7 @@ import com.sergeysav.voxel.client.nuklear.Gui
 import com.sergeysav.voxel.client.nuklear.GuiWindow
 import com.sergeysav.voxel.client.nuklear.HAlign
 import com.sergeysav.voxel.client.screen.game.GameScreen
+import com.sergeysav.voxel.client.settings.GraphicsSettings
 import org.lwjgl.nuklear.Nuklear
 
 /**
@@ -19,7 +20,6 @@ class MainMenuUI : GuiWindow("Main Menu") {
             window.background.hidden {
                 window(0f, 0f, application.width.toFloat(), application.height.toFloat(),
                     Nuklear.NK_WINDOW_NO_INPUT or
-//                            Nuklear.NK_WINDOW_ROM or
                             Nuklear.NK_WINDOW_NO_SCROLLBAR) {
                     dynamicRow(1, (application.height - LOADING_TEXT_HEIGHT - PLAY_BUTTON_HEIGHT) / 3f) {}
 
@@ -31,7 +31,9 @@ class MainMenuUI : GuiWindow("Main Menu") {
 
                     dynamicRow(1, PLAY_BUTTON_HEIGHT) {
                         button("Enter World") {
-                            application.openScreen(GameScreen())
+                            application.openScreen(GameScreen(
+                                GraphicsSettings()
+                            ))
                         }
                     }
                 }

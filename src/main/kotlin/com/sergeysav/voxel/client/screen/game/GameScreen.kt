@@ -17,6 +17,7 @@ import com.sergeysav.voxel.client.gl.bound
 import com.sergeysav.voxel.client.gl.createTexture
 import com.sergeysav.voxel.client.player.PlayerInput
 import com.sergeysav.voxel.client.screen.Screen
+import com.sergeysav.voxel.client.settings.GraphicsSettings
 import com.sergeysav.voxel.client.world.ClientWorld
 import com.sergeysav.voxel.client.world.meshing.SimpleThreadedMeshingManager
 import com.sergeysav.voxel.client.world.meshing.selection.PriorityMeshSelectionStrategy
@@ -40,18 +41,18 @@ import kotlin.math.roundToInt
  *
  * @constructor Creates a new MainScreen
  */
-class GameScreen : Screen {
+class GameScreen(graphicsSettings: GraphicsSettings) : Screen {
 
     private val log = KotlinLogging.logger {  }
-    private val cameraController = CameraController(Camera(Math.toRadians(45.0).toFloat(), 1f, 1/16f, 2000f))
+    private val cameraController = CameraController(Camera(Math.toRadians(graphicsSettings.fov).toFloat(), 1f, 1/16f, 2000f))
     private lateinit var application: Frontend
     private val blockPos = MutableBlockPosition()
     private val distanceWorldLoadingStrategy = DistanceWorldLoadingStrategy(blockPos, 10)
     private val meshingManager = SimpleThreadedMeshingManager(
         PriorityMeshSelectionStrategy(blockPos),
-        parallelism = 8,
-        meshesPerFrame = 64,
-        dirtyQueueSize = 256
+        parallelism = graphicsSettings.meshingSettings.parallelism,
+        meshesPerFrame = graphicsSettings.meshingSettings.meshesPerFrame,
+        dirtyQueueSize = graphicsSettings.meshingSettings.dirtyQueueSize
     )
     private val loadingChunkQueuingStrategy = ClosestChunkQueuingStrategy<ClientChunk>(blockPos)
     private val savingChunkQueuingStrategy = ClosestChunkQueuingStrategy<ClientChunk>(blockPos)
@@ -59,12 +60,12 @@ class GameScreen : Screen {
         loadingChunkQueuingStrategy,
         savingChunkQueuingStrategy,
         DevTestGenerator1(),
-        regionFilesBasePath = "world",
-        processingQueueSize = 8, // This should be as small as possible to prevent things from being in the processing queue for too long
-        savingQueueSize = 1, // This should be as small as possible to prevent things from being in the saving queue for too long
-        internalQueueSize = 256,
-        loadingParallelism = 8,
-        savingParallelism = 8
+        regionFilesBasePath = graphicsSettings.chunkManagerSettings.regionFilesBasePath,
+        processingQueueSize = graphicsSettings.chunkManagerSettings.loadingQueueSize,
+        savingQueueSize = graphicsSettings.chunkManagerSettings.savingQueueSize,
+        internalQueueSize = graphicsSettings.chunkManagerSettings.internalQueueSize,
+        loadingParallelism = graphicsSettings.chunkManagerSettings.loadingParallelism,
+        savingParallelism = graphicsSettings.chunkManagerSettings.savingParallelism
     )
     private val world = ClientWorld(
         SimpleUnionWorldLoadingManager(distanceWorldLoadingStrategy),
