@@ -33,10 +33,10 @@ open class RandomizedSolidBlockMesher<B : Block<out S>, S : BlockState>(
     override fun getAxisTexture(pos: BlockPosition, block: B, state: S, direction: Direction): TextureResource = texture
 
     override fun getAxisRotation(pos: BlockPosition, block: B, state: S, direction: Direction): BlockTextureRotation
-            = BlockTextureRotation.values()[(random(pos, block, state, direction, 0L) * BlockTextureRotation.values().size).toInt()]
+            = BlockTextureRotation.all[(random(pos, block, state, direction, 0L) * BlockTextureRotation.all.size).toInt()]
 
     override fun getAxisReflection(pos: BlockPosition, block: B, state: S, direction: Direction): BlockTextureReflection
-            = BlockTextureReflection.values()[(random(pos, block, state, direction, 1L) * BlockTextureReflection.values().size).toInt()]
+            = BlockTextureReflection.all[(random(pos, block, state, direction, 1L) * BlockTextureReflection.all.size).toInt()]
 
     companion object {
         val randomPool = LocalObjectPool({ Random() }, 1)

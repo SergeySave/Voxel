@@ -9,7 +9,11 @@ import com.sergeysav.voxel.common.data.Direction
  *
  * @constructor Creates a new Test
  */
-object Test : BaseBlock<AxialBlockState>() {
+object Test : BaseBlock<AxialBlockState>("test") {
 
     val states = AxialBlockState.states
+
+    override fun getStateFromSimpleValue(value: Byte): AxialBlockState = AxialBlockState.states[value.toInt() and 0xFF]
+
+    override fun getSimpleValueForState(state: AxialBlockState): Byte = state.axis.ordinal.toByte()
 }

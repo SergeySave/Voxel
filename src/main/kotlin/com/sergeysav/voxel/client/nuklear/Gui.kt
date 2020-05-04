@@ -237,30 +237,34 @@ class Gui(private val inputManager: InputManager, fontResourceString: String) {
         vbo = VertexBufferObject(GL20.glGenBuffers())
         ebo = ElementBufferObject(GL20.glGenBuffers())
         vao = VertexArrayObject(GL30.glGenVertexArrays())
-        bound(vao, vbo, ebo) {
-            GL20C.glEnableVertexAttribArray(program.getAttribute("Position"))
-            GL20C.glEnableVertexAttribArray(program.getAttribute("TexCoord"))
-            GL20C.glEnableVertexAttribArray(program.getAttribute("Color"))
-            
-            GL20C.glVertexAttribPointer(program.getAttribute("Position"), 2, GL11C.GL_FLOAT, false, 20, 0)
-            GL20C.glVertexAttribPointer(program.getAttribute("TexCoord"), 2, GL11C.GL_FLOAT, false, 20, 8)
-            GL20C.glVertexAttribPointer(program.getAttribute("Color"), 4, GL11C.GL_UNSIGNED_BYTE, true, 20, 16)
-            program.validate()
-            
-            log.trace { "Initializing Null Texture" }
-            val nullTex = Texture2D(GL11.glGenTextures())
-            nullTexture.texture().id(nullTex.id)
-            nullTexture.uv().set(0.5f, 0.5f)
-            nullTex.bound {
-                MemoryStack.stackPush().use { stack ->
-                    GL11C.glTexImage2D(GL11C.GL_TEXTURE_2D, 0, GL11C.GL_RGBA8, 1, 1, 0, GL11C.GL_RGBA,
-                                       GL12C.GL_UNSIGNED_INT_8_8_8_8_REV, stack.ints(-0x1))
+        vao.bound {
+            vbo.bound {
+                ebo.bound {
+                    GL20C.glEnableVertexAttribArray(program.getAttribute("Position"))
+                    GL20C.glEnableVertexAttribArray(program.getAttribute("TexCoord"))
+                    GL20C.glEnableVertexAttribArray(program.getAttribute("Color"))
+
+                    GL20C.glVertexAttribPointer(program.getAttribute("Position"), 2, GL11C.GL_FLOAT, false, 20, 0)
+                    GL20C.glVertexAttribPointer(program.getAttribute("TexCoord"), 2, GL11C.GL_FLOAT, false, 20, 8)
+                    GL20C.glVertexAttribPointer(program.getAttribute("Color"), 4, GL11C.GL_UNSIGNED_BYTE, true, 20, 16)
+                    program.validate()
+
+                    log.trace { "Initializing Null Texture" }
+                    val nullTex = Texture2D(GL11.glGenTextures())
+                    nullTexture.texture().id(nullTex.id)
+                    nullTexture.uv().set(0.5f, 0.5f)
+                    nullTex.bound {
+                        MemoryStack.stackPush().use { stack ->
+                            GL11C.glTexImage2D(GL11C.GL_TEXTURE_2D, 0, GL11C.GL_RGBA8, 1, 1, 0, GL11C.GL_RGBA,
+                                               GL12C.GL_UNSIGNED_INT_8_8_8_8_REV, stack.ints(-0x1))
+                        }
+                        GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL11C.GL_TEXTURE_MAG_FILTER, GL11C.GL_NEAREST)
+                        GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL11C.GL_TEXTURE_MIN_FILTER, GL11C.GL_NEAREST)
+                    }
                 }
-                GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL11C.GL_TEXTURE_MAG_FILTER, GL11C.GL_NEAREST)
-                GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL11C.GL_TEXTURE_MIN_FILTER, GL11C.GL_NEAREST)
             }
         }
-        
+
         log.trace { "Initializing Nuklear Font" }
         val ttf = IOUtil.readResourceToBuffer(fontResourceString, 512 * 1024)
         smallFont = NkFont.fromTTF(12f, ttf)
@@ -322,67 +326,74 @@ class Gui(private val inputManager: InputManager, fontResourceString: String) {
         // convert from command queue into draw list and draw to screen
         
         // allocate vertex and element buffer
-        bound(vao, vbo, ebo) {
-            GL15C.glBufferData(GL15C.GL_ARRAY_BUFFER, max_vertex_buffer.toLong(), GL15C.GL_STREAM_DRAW)
-            GL15C.glBufferData(GL15C.GL_ELEMENT_ARRAY_BUFFER, max_element_buffer.toLong(), GL15C.GL_STREAM_DRAW)
-            
-            // load draw vertices & elements directly into vertex + element buffer
-            val vertices = Objects.requireNonNull<ByteBuffer>(
-                    GL15C.glMapBuffer(GL15C.GL_ARRAY_BUFFER, GL15C.GL_WRITE_ONLY, max_vertex_buffer.toLong(), null))
-            val elements = Objects.requireNonNull<ByteBuffer>(
-                    GL15C.glMapBuffer(GL15C.GL_ELEMENT_ARRAY_BUFFER, GL15C.GL_WRITE_ONLY, max_element_buffer.toLong(),
-                                      null))
-            MemoryStack.stackPush().use { stack ->
-                // fill convert configuration
-                val config = NkConvertConfig.callocStack(stack)
-                        .vertex_layout(nkVertexLayout)
-                        .vertex_size(20)
-                        .vertex_alignment(4)
-                        .null_texture(nullTexture)
-                        .circle_segment_count(22)
-                        .curve_segment_count(22)
-                        .arc_segment_count(22)
-                        .global_alpha(1.0f)
-                        .shape_AA(AA)
-                        .line_AA(AA)
-                
-                // setup buffers to load vertices and elements
-                val vbuf = NkBuffer.mallocStack(stack)
-                val ebuf = NkBuffer.mallocStack(stack)
-                
-                Nuklear.nk_buffer_init_fixed(vbuf, vertices/*, max_vertex_buffer*/)
-                Nuklear.nk_buffer_init_fixed(ebuf, elements/*, max_element_buffer*/)
-                Nuklear.nk_convert(context, commandBuffer, vbuf, ebuf, config)
-            }
-            GL15C.glUnmapBuffer(GL15C.GL_ELEMENT_ARRAY_BUFFER)
-            GL15C.glUnmapBuffer(GL15C.GL_ARRAY_BUFFER)
-            
-            // iterate over and execute each draw command
-            val fb_scale_x = fWidth.toFloat() / width.toFloat()
-            val fb_scale_y = fHeight.toFloat() / height.toFloat()
-            
-            var offset = MemoryUtil.NULL
-            var cmd = Nuklear.nk__draw_begin(context, commandBuffer)
-            while (cmd != null) {
-                if (cmd.elem_count() == 0) {
-                    cmd = Nuklear.nk__draw_next(cmd, commandBuffer, context)
-                    continue
+        vao.bound {
+            vbo.bound {
+                ebo.bound {
+                    GL15C.glBufferData(GL15C.GL_ARRAY_BUFFER, max_vertex_buffer.toLong(), GL15C.GL_STREAM_DRAW)
+                    GL15C.glBufferData(GL15C.GL_ELEMENT_ARRAY_BUFFER, max_element_buffer.toLong(), GL15C.GL_STREAM_DRAW)
+
+                    // load draw vertices & elements directly into vertex + element buffer
+                    val vertices = Objects.requireNonNull<ByteBuffer>(
+                        GL15C.glMapBuffer(GL15C.GL_ARRAY_BUFFER, GL15C.GL_WRITE_ONLY, max_vertex_buffer.toLong(), null)
+                    )
+                    val elements = Objects.requireNonNull<ByteBuffer>(
+                        GL15C.glMapBuffer(
+                            GL15C.GL_ELEMENT_ARRAY_BUFFER, GL15C.GL_WRITE_ONLY, max_element_buffer.toLong(),
+                            null
+                        )
+                    )
+                    MemoryStack.stackPush().use { stack ->
+                        // fill convert configuration
+                        val config = NkConvertConfig.callocStack(stack)
+                            .vertex_layout(nkVertexLayout)
+                            .vertex_size(20)
+                            .vertex_alignment(4)
+                            .null_texture(nullTexture)
+                            .circle_segment_count(22)
+                            .curve_segment_count(22)
+                            .arc_segment_count(22)
+                            .global_alpha(1.0f)
+                            .shape_AA(AA)
+                            .line_AA(AA)
+
+                        // setup buffers to load vertices and elements
+                        val vbuf = NkBuffer.mallocStack(stack)
+                        val ebuf = NkBuffer.mallocStack(stack)
+
+                        Nuklear.nk_buffer_init_fixed(vbuf, vertices/*, max_vertex_buffer*/)
+                        Nuklear.nk_buffer_init_fixed(ebuf, elements/*, max_element_buffer*/)
+                        Nuklear.nk_convert(context, commandBuffer, vbuf, ebuf, config)
+                    }
+                    GL15C.glUnmapBuffer(GL15C.GL_ELEMENT_ARRAY_BUFFER)
+                    GL15C.glUnmapBuffer(GL15C.GL_ARRAY_BUFFER)
+
+                    // iterate over and execute each draw command
+                    val fb_scale_x = fWidth.toFloat() / width.toFloat()
+                    val fb_scale_y = fHeight.toFloat() / height.toFloat()
+
+                    var offset = MemoryUtil.NULL
+                    var cmd = Nuklear.nk__draw_begin(context, commandBuffer)
+                    while (cmd != null) {
+                        if (cmd.elem_count() == 0) {
+                            cmd = Nuklear.nk__draw_next(cmd, commandBuffer, context)
+                            continue
+                        }
+                        GL13C.glActiveTexture(GL13C.GL_TEXTURE0)
+                        GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, cmd.texture().id())
+                        GL11C.glScissor(
+                            (cmd.clip_rect().x() * fb_scale_x).toInt(),
+                            ((height - (cmd.clip_rect().y() + cmd.clip_rect().h()).toInt()) * fb_scale_y).toInt(),
+                            (cmd.clip_rect().w() * fb_scale_x).toInt(),
+                            (cmd.clip_rect().h() * fb_scale_y).toInt()
+                        )
+                        GL11C.glDrawElements(GL11C.GL_TRIANGLES, cmd.elem_count(), GL11C.GL_UNSIGNED_SHORT, offset)
+                        offset += (cmd.elem_count() * 2).toLong()
+                        cmd = Nuklear.nk__draw_next(cmd, commandBuffer, context)
+                    }
+                    Nuklear.nk_clear(context)
                 }
-                GL13C.glActiveTexture(GL13C.GL_TEXTURE0)
-                GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, cmd.texture().id())
-                GL11C.glScissor(
-                        (cmd.clip_rect().x() * fb_scale_x).toInt(),
-                        ((height - (cmd.clip_rect().y() + cmd.clip_rect().h()).toInt()) * fb_scale_y).toInt(),
-                        (cmd.clip_rect().w() * fb_scale_x).toInt(),
-                        (cmd.clip_rect().h() * fb_scale_y).toInt()
-                )
-                GL11C.glDrawElements(GL11C.GL_TRIANGLES, cmd.elem_count(), GL11C.GL_UNSIGNED_SHORT, offset)
-                offset += (cmd.elem_count() * 2).toLong()
-                cmd = Nuklear.nk__draw_next(cmd, commandBuffer, context)
             }
-            Nuklear.nk_clear(context)
         }
-        
         
         // default OpenGL state
         program.unbind()

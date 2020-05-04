@@ -8,6 +8,7 @@ import com.sergeysav.voxel.common.world.generator.ChunkGenerator
  *
  * @constructor Creates a new SimpleChunkManager
  */
+@Deprecated("Does not support chunk save/load")
 class SimpleChunkManager<C : Chunk>(private val chunkGenerator: ChunkGenerator<in Chunk>) : ChunkManager<C> {
 
     private lateinit var releaseCallback: (C) -> Unit
@@ -27,6 +28,9 @@ class SimpleChunkManager<C : Chunk>(private val chunkGenerator: ChunkGenerator<i
 
     override fun requestUnload(chunk: C) {
         toRelease.add(chunk)
+    }
+
+    override fun notifyChunkDirty(chunk: C) {
     }
 
     override fun update() {

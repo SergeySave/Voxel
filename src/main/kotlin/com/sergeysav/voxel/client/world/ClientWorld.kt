@@ -57,10 +57,7 @@ class ClientWorld(
 
     init {
         log.info { "Initializing Client World" }
-        chunkManager.initialize({
-            it.reset()
-            chunkPool.put(it)
-        }) { clientChunk ->
+        chunkManager.initialize(this::releaseChunk) { clientChunk ->
             clientChunk.loaded = true
             worldMeshingManager.notifyMeshDirty(clientChunk)
 
@@ -82,10 +79,25 @@ class ClientWorld(
         }
     }
 
+    private fun getNewChunk(chunkPosition: ChunkPosition): ClientChunk {
+        val (x, y, z) = chunkPosition
+        val chunk = chunkPool.get()
+        (chunk.position as MutableChunkPosition).apply {
+            this.x = x
+            this.y = y
+            this.z = z
+        }
+        return chunk
+    }
+
+    private fun releaseChunk(chunk: ClientChunk) {
+        chunk.reset()
+        chunkPool.put(chunk)
+    }
+
     private fun doLoad(chunkPosition: ChunkPosition) {
         if (!chunks.containsKey(chunkPosition)) {
-            val chunk = chunkPool.get()
-            (chunk.position as MutableChunkPosition).set(chunkPosition)
+            val chunk = getNewChunk(chunkPosition)
             chunks[chunk.position] = chunk
             chunkManager.requestLoad(chunk)
         }
@@ -123,6 +135,7 @@ class ClientWorld(
                 chunks[chunkPos]?.let {
                     it.setBlock(blockPos, block, blockState)
                     worldMeshingManager.notifyMeshDirty(it)
+                    chunkManager.notifyChunkDirty(it)
                 }
                 chunkPosPool.with {
                     for (d in Direction.all) {

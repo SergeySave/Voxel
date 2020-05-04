@@ -1,8 +1,8 @@
 package com.sergeysav.voxel.common.world.chunks
 
 import com.sergeysav.voxel.common.chunk.Chunk
+import com.sergeysav.voxel.common.chunk.queuing.ChunkQueuingStrategy
 import com.sergeysav.voxel.common.world.generator.ChunkGenerator
-import com.sergeysav.voxel.common.world.loading.selection.LoadSelectionStrategy
 import mu.KotlinLogging
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.BlockingQueue
@@ -12,8 +12,9 @@ import java.util.concurrent.BlockingQueue
  *
  * @constructor Creates a new SimpleThreadedChunkManager
  */
+@Deprecated("Does not support region-based chunks")
 class SimpleThreadedChunkManager<C : Chunk>(
-    private val loadSelectionStrategy: LoadSelectionStrategy<C>,
+    private val loadSelectionStrategy: ChunkQueuingStrategy<C>,
     chunkGenerator: ChunkGenerator<in Chunk>,
     private val parallelism: Int = 1,
     private val chunksPerFrame: Int = 16,
@@ -54,6 +55,10 @@ class SimpleThreadedChunkManager<C : Chunk>(
 
     override fun requestUnload(chunk: C) {
         selectionThread.removeLoad(chunk)
+    }
+
+    override fun notifyChunkDirty(chunk: C) {
+        TODO("Not yet implemented")
     }
 
     override fun update() {

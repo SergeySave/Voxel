@@ -15,7 +15,7 @@ import kotlin.random.Random
 class PriorityMeshSelectionStrategy(private val blockPos: BlockPosition) : MeshSelectionStrategy {
 
     private val log = KotlinLogging.logger {  }
-    private val chunks = LinkedHashSet<ClientChunk>(1000, 0.75f)
+    private val chunks = ArrayList<ClientChunk>(1000)
 
     init {
         log.trace { "Initializing Mesh Selection Strategy" }
@@ -24,7 +24,9 @@ class PriorityMeshSelectionStrategy(private val blockPos: BlockPosition) : MeshS
     override fun currentSize(): Int = chunks.size
 
     override fun add(chunk: ClientChunk) {
-        chunks.add(chunk)
+        if (!chunks.contains(chunk)) {
+            chunks.add(chunk)
+        }
     }
 
     override fun remove(chunk: ClientChunk) {
@@ -42,10 +44,10 @@ class PriorityMeshSelectionStrategy(private val blockPos: BlockPosition) : MeshS
     override fun tryGetNext(): ClientChunk? {
         var minVal = Double.POSITIVE_INFINITY
         var minChunk: ClientChunk? = null
-        for (chunk in chunks) {
-            val chunkVal = mapFunc(chunk)
+        for (i in 0 until chunks.size) {
+            val chunkVal = mapFunc(chunks[i])
             if (chunkVal < minVal) {
-                minChunk = chunk
+                minChunk = chunks[i]
                 minVal = chunkVal
             }
         }

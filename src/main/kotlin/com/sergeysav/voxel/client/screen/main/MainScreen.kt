@@ -22,11 +22,12 @@ import com.sergeysav.voxel.client.world.meshing.selection.PriorityMeshSelectionS
 import com.sergeysav.voxel.common.IOUtil
 import com.sergeysav.voxel.common.block.MutableBlockPosition
 import com.sergeysav.voxel.common.bound
+import com.sergeysav.voxel.common.chunk.queuing.ClosestChunkQueuingStrategy
+import com.sergeysav.voxel.common.world.chunks.RegionThreadedChunkManager
 import com.sergeysav.voxel.common.world.chunks.SimpleThreadedChunkManager
 import com.sergeysav.voxel.common.world.generator.DevTestGenerator1
 import com.sergeysav.voxel.common.world.loading.DistanceWorldLoadingStrategy
 import com.sergeysav.voxel.common.world.loading.SimpleUnionWorldLoadingManager
-import com.sergeysav.voxel.common.world.loading.selection.PriorityLoadSelectionStrategy
 import mu.KotlinLogging
 import org.joml.Vector3f
 import org.lwjgl.glfw.GLFW
@@ -52,13 +53,18 @@ class MainScreen : Screen {
         meshesPerFrame = 64,
         dirtyQueueSize = 256
     )
-    private val chunkManager = SimpleThreadedChunkManager<ClientChunk>(
-        PriorityLoadSelectionStrategy(blockPos),
+    private val loadingChunkQueuingStrategy = ClosestChunkQueuingStrategy<ClientChunk>(blockPos)
+    private val savingChunkQueuingStrategy = ClosestChunkQueuingStrategy<ClientChunk>(blockPos)
+    private val chunkManager = RegionThreadedChunkManager(
+        loadingChunkQueuingStrategy,
+        savingChunkQueuingStrategy,
         DevTestGenerator1(),
-        parallelism = 4,
-        chunksPerFrame = 64,
-        loadQueueSize = 256,
-        releaseQueueSize = 512
+        regionFilesBasePath = "world",
+        processingQueueSize = 8, // This should be as small as possible to prevent things from being in the processing queue for too long
+        savingQueueSize = 1, // This should be as small as possible to prevent things from being in the saving queue for too long
+        internalQueueSize = 256,
+        loadingParallelism = 8,
+        savingParallelism = 8
     )
     private val world = ClientWorld(
         SimpleUnionWorldLoadingManager(distanceWorldLoadingStrategy),
@@ -165,7 +171,7 @@ class MainScreen : Screen {
     }
 
     override fun render(delta: Double) {
-        debugUI.layout(application.gui, 1/delta, meshingManager.getQueueSize(), chunkManager.getQueueSize())
+        debugUI.layout(application.gui, 1/delta, meshingManager.getQueueSize(), loadingChunkQueuingStrategy.currentSize(), savingChunkQueuingStrategy.currentSize())
 
         val speed = 0.2f
         val forwardBackward = speed * (if (application.isKeyPressed(GLFW.GLFW_KEY_W)) 1 else 0 + if (application.isKeyPressed(

@@ -1,18 +1,9 @@
 package com.sergeysav.voxel.client.world.meshing.selection
 
 import com.sergeysav.voxel.client.chunk.ClientChunk
+import com.sergeysav.voxel.common.chunk.queuing.ChunkQueuingStrategy
 
 /**
  * @author sergeys
  */
-interface MeshSelectionStrategy {
-
-    fun currentSize(): Int
-
-    fun add(chunk: ClientChunk)
-    fun remove(chunk: ClientChunk)
-
-    fun tryGetNext(): ClientChunk?
-
-    fun clear()
-}
+typealias MeshSelectionStrategy = ChunkQueuingStrategy<ClientChunk>

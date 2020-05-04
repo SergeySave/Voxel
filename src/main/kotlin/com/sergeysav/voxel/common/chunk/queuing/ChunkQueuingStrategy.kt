@@ -1,11 +1,11 @@
-package com.sergeysav.voxel.common.world.loading.selection
+package com.sergeysav.voxel.common.chunk.queuing
 
 import com.sergeysav.voxel.common.chunk.Chunk
 
 /**
  * @author sergeys
  */
-interface LoadSelectionStrategy<C : Chunk> {
+interface ChunkQueuingStrategy<C : Chunk> {
 
     fun currentSize(): Int
 

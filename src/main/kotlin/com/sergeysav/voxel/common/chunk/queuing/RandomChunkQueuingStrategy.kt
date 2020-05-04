@@ -1,6 +1,5 @@
-package com.sergeysav.voxel.common.world.loading.selection
+package com.sergeysav.voxel.common.chunk.queuing
 
-import com.sergeysav.voxel.client.chunk.ClientChunk
 import com.sergeysav.voxel.common.chunk.Chunk
 import mu.KotlinLogging
 
@@ -9,13 +8,13 @@ import mu.KotlinLogging
  *
  * @constructor Creates a new RandomLoadSelectionStrategy
  */
-class FirstLoadSelectionStrategy<C : Chunk> : LoadSelectionStrategy<C> {
+class RandomChunkQueuingStrategy<C : Chunk> : ChunkQueuingStrategy<C> {
 
     private val log = KotlinLogging.logger {  }
-    private val chunks = LinkedHashSet<C>(1000, 0.75f)
+    private val chunks = LinkedHashSet<C>(100, 0.75f)
 
     init {
-        log.trace { "Initializing World Load Selection Strategy" }
+        log.trace { "Initializing ChunkQueueingStrategy" }
     }
 
     override fun currentSize(): Int = chunks.size
@@ -29,7 +28,7 @@ class FirstLoadSelectionStrategy<C : Chunk> : LoadSelectionStrategy<C> {
     }
 
     override fun tryGetNext(): C? {
-        return chunks.firstOrNull()
+        return if (chunks.isNotEmpty()) chunks.random() else null
     }
 
     override fun clear() {

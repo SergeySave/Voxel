@@ -9,6 +9,10 @@ enum class BlockTextureRotation {
     FULL,
     CLOCKWISE;
 
+    companion object {
+        val all = values()
+    }
+
     operator fun BlockTextureRotation.plus(other: BlockTextureRotation): BlockTextureRotation {
         return values()[(this.ordinal + other.ordinal) % values().size]
     }

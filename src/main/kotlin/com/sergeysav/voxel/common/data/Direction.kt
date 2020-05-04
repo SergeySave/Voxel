@@ -7,6 +7,8 @@ sealed class Direction(val textureAxis: Int, val relX: Int, val relY: Int, val r
     abstract val opposite: Direction
     abstract val up: Direction
     abstract val left: Direction
+    val ordinal: Int
+        get() = textureAxis
 
     override fun toString(): String {
         return (this::class.simpleName ?: "")
@@ -44,6 +46,6 @@ sealed class Direction(val textureAxis: Int, val relX: Int, val relY: Int, val r
     }
 
     companion object {
-        val all = arrayOf(North, South, East, West, Up, Down)
+        val all = listOf(West, South, Up, East, North, Down)
     }
 }

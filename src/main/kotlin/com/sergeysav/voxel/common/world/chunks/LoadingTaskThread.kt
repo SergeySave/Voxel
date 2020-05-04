@@ -10,6 +10,7 @@ import java.util.concurrent.BlockingQueue
  *
  * @constructor Creates a new LoadingTaskThread
  */
+@Deprecated("SimpleThreadedChunkManager is deprecated")
 class LoadingTaskThread<C : Chunk>(
     private val loadQueue: BlockingQueue<C>,
     private val chunkGenerator: ChunkGenerator<in C>,

@@ -1,7 +1,7 @@
 package com.sergeysav.voxel.common.world.chunks
 
 import com.sergeysav.voxel.common.chunk.Chunk
-import com.sergeysav.voxel.common.world.loading.selection.LoadSelectionStrategy
+import com.sergeysav.voxel.common.chunk.queuing.ChunkQueuingStrategy
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.BlockingQueue
 
@@ -10,8 +10,9 @@ import java.util.concurrent.BlockingQueue
  *
  * @constructor Creates a new LoadingSelectionThread
  */
+@Deprecated("SimpleThreadedChunkManager is deprecated")
 class LoadingSelectionThread<C : Chunk>(
-    private val loadSelectionStrategy: LoadSelectionStrategy<C>,
+    private val loadSelectionStrategy: ChunkQueuingStrategy<C>,
     private val chunkReleaseCallback: (C)->Unit = {},
     queueSize: Int,
     private val loadQueue: BlockingQueue<C>,

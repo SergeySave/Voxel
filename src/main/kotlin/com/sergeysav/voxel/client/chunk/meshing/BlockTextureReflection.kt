@@ -9,7 +9,11 @@ enum class BlockTextureReflection {
     Y_REFLECT,
     X_Y_REFLECT;
 
+    companion object {
+        val all = values()
+    }
+
     operator fun BlockTextureReflection.plus(other: BlockTextureReflection): BlockTextureReflection {
-        return values()[this.ordinal or other.ordinal]
+        return all[this.ordinal or other.ordinal]
     }
 }
