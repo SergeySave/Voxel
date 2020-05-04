@@ -1,4 +1,4 @@
-package com.sergeysav.voxel.client.screen.main
+package com.sergeysav.voxel.client.screen.game
 
 import com.sergeysav.voxel.client.nuklear.Gui
 import com.sergeysav.voxel.client.nuklear.GuiWindow

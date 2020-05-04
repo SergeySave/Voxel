@@ -44,12 +44,6 @@ class AtlasDataTexture(private val width: Int, private val height: Int) {
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, TextureWrapMode.CLAMP_TO_EDGE.id)
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, TextureInterpolationMode.NEAREST.id)
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, TextureInterpolationMode.NEAREST.id)
-//            if (generateMipmaps) {
-//                GL30.glGenerateMipmap(GL11.GL_TEXTURE_2D)
-//            }
-//            if (clampColor != null) {
-//                GL11.glTexParameterfv(GL11.GL_TEXTURE_2D, GL20.GL_TEXTURE_BORDER_COLOR, clampColor)
-//            }
         }
         return texture
     }

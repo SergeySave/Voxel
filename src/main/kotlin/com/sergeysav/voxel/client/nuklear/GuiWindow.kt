@@ -83,6 +83,7 @@ abstract class GuiWindow(val windowName: String) {
         fun dynamicRow(columns: Int, height: Float = 0f, inner: DynamicRow.() -> Unit) {
             Nuklear.nk_layout_row_dynamic(gui.context, height, columns)
             dynamicRow.inner()
+            Nuklear.nk_layout_row_end(gui.context)
         }
         
         fun font(font: NkFont, inner: () -> Unit) {
@@ -93,8 +94,21 @@ abstract class GuiWindow(val windowName: String) {
     }
     
     inner class DynamicRow {
+
+        fun column(width: Float) {
+            Nuklear.nk_layout_row_push(gui.context, width)
+        }
+
+        fun spacing(columns: Int) {
+            Nuklear.nk_spacing(gui.context, columns)
+        }
+
         fun label(text: String, hAlign: HAlign = HAlign.LEFT, vAlign: VAlign = VAlign.MIDDLE) {
             Nuklear.nk_label(gui.context, text, hAlign.id or vAlign.id)
+        }
+
+        fun progressBar(current: Long, max: Long, modifyable: Boolean): Long {
+            return Nuklear.nk_prog(gui.context, current, max, modifyable)
         }
         
         fun button(text: String, inner: () -> Unit) {

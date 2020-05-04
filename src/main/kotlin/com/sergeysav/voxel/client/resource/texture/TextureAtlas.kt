@@ -5,6 +5,7 @@ import com.sergeysav.voxel.client.gl.Texture2D
 import com.sergeysav.voxel.client.gl.TextureInterpolationMode
 import com.sergeysav.voxel.client.gl.createTexture
 import com.sergeysav.voxel.common.IOUtil
+import com.sergeysav.voxel.common.MainThreadRunner
 import mu.KotlinLogging
 import org.lwjgl.BufferUtils
 import org.lwjgl.stb.STBImageWrite
@@ -15,6 +16,7 @@ import org.lwjgl.stb.STBRectPack
 import org.lwjgl.system.MemoryStack
 import java.nio.ByteBuffer
 import java.nio.IntBuffer
+import java.util.concurrent.CompletableFuture
 
 /**
  * @author sergeys
@@ -24,7 +26,13 @@ import java.nio.IntBuffer
 class TextureAtlas {
     companion object {
         private val log = KotlinLogging.logger { }
-        fun loadToAtlas(imagePaths: List<String>, width: Int, height: Int, atlasIndex: Int, assetDataTexture: IntBuffer): Texture2D {
+        fun loadToAtlas(
+            imagePaths: List<String>,
+            width: Int, height: Int,
+            atlasIndex: Int,
+            assetDataTexture: IntBuffer,
+            mainThreadRunner: MainThreadRunner
+        ): CompletableFuture<Texture2D> {
             log.info { "Generating Texture Atlas" }
             val images = imagePaths.map {
                 log.trace { "Loading $it for atlas" }
@@ -88,16 +96,6 @@ class TextureAtlas {
                                 }
                             }
 
-//                            assetDataTexture.put((atlasIndex and 0xFF).toByte())
-//                            assetDataTexture.put(((x.toInt() and 0x3FC0) ushr 6).toByte())
-//                            assetDataTexture.put((((x.toInt() and 0x003F) shl 2) or ((y.toInt() and 0x3000) ushr 12)).toByte())
-//                            assetDataTexture.put(((y.toInt() and 0x0FF0) ushr 4).toByte())
-
-//                            assetDataTexture.put((((y.toInt() and 0x000F) shl 4) or ((w.toInt() and 0x3C00) ushr 10)).toByte())
-//                            assetDataTexture.put(((w.toInt() and 0x03FC) ushr 2).toByte())
-//                            assetDataTexture.put((((w.toInt() and 0x0003) shl 6) or ((h.toInt() and 0x3F00) ushr 8)).toByte())
-//                            assetDataTexture.put((h.toInt() and 0x00FF).toByte())
-
                             assetDataTexture.put(((atlasIndex and 0xFF) shl 24) or ((x.toInt() and 0x3FFF) shl 10) or ((y.toInt() and 0x3FF0) ushr 4))
                             assetDataTexture.put(((y.toInt() and 0x000F) shl 28) or ((w.toInt() and 0x3FFF) shl 14) or (h.toInt() and 0x3FFF))
                         } else {
@@ -111,15 +109,17 @@ class TextureAtlas {
             STBImageWrite.stbi_flip_vertically_on_write(true)
             STBImageWrite.stbi_write_png("atlas.png", width, height,  4, atlasData, width * 4)
 
-            log.trace { "Creating Atlas Texture" }
             val image = Image.createDirect(atlasData, width, height, 4)
-            val texture = image.createTexture(
-                minInterp = TextureInterpolationMode.NEAREST,
-                maxInterp = TextureInterpolationMode.NEAREST,
-                generateMipmaps = false
-            )
-            image.free()
-            return texture
+            return mainThreadRunner.runOnMainThread {
+                log.trace { "Creating Atlas Texture" }
+                val texture = image.createTexture(
+                    minInterp = TextureInterpolationMode.NEAREST,
+                    maxInterp = TextureInterpolationMode.NEAREST,
+                    generateMipmaps = false
+                )
+                image.free()
+                texture
+            }
         }
     }
 }

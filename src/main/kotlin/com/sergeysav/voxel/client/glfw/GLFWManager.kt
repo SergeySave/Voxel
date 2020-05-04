@@ -238,4 +238,6 @@ abstract class GLFWManager(width: Int, height: Int): InputManager() {
     protected abstract fun cleanup()
 
     protected open fun resize(width: Int, height: Int) = Unit
+
+    protected fun close() = GLFW.glfwSetWindowShouldClose(window, true)
 }

@@ -1,6 +1,7 @@
-package com.sergeysav.voxel.client.screen.main
+package com.sergeysav.voxel.client.screen.game
 
 import com.sergeysav.voxel.client.Frontend
+import com.sergeysav.voxel.client.FrontendProxy
 import com.sergeysav.voxel.client.camera.Camera
 import com.sergeysav.voxel.client.camera.CameraController
 import com.sergeysav.voxel.client.chunk.ClientChunk
@@ -24,7 +25,6 @@ import com.sergeysav.voxel.common.block.MutableBlockPosition
 import com.sergeysav.voxel.common.bound
 import com.sergeysav.voxel.common.chunk.queuing.ClosestChunkQueuingStrategy
 import com.sergeysav.voxel.common.world.chunks.RegionThreadedChunkManager
-import com.sergeysav.voxel.common.world.chunks.SimpleThreadedChunkManager
 import com.sergeysav.voxel.common.world.generator.DevTestGenerator1
 import com.sergeysav.voxel.common.world.loading.DistanceWorldLoadingStrategy
 import com.sergeysav.voxel.common.world.loading.SimpleUnionWorldLoadingManager
@@ -40,7 +40,7 @@ import kotlin.math.roundToInt
  *
  * @constructor Creates a new MainScreen
  */
-class MainScreen : Screen {
+class GameScreen : Screen {
 
     private val log = KotlinLogging.logger {  }
     private val cameraController = CameraController(Camera(Math.toRadians(45.0).toFloat(), 1f, 1/16f, 2000f))
@@ -86,40 +86,10 @@ class MainScreen : Screen {
         mouseButton2Down = false,
         mouseButton2JustUp = false
     )
-    private val crosshairMesh = Mesh(GLDrawingMode.TRIANGLES, true)
-    private val crosshairShader: ShaderProgram = ShaderProgram()
-    private val crosshairTexture: Texture2D
     private val debugUI = DebugUI()
 
     init {
         cameraController.setPos(0f, 10f, 0f)
-
-        log.trace { "Creating Crosshair Texture" }
-        crosshairTexture = Image.createTexture(
-            path = "/images/crosshairs_inverted.png",
-            minInterp = TextureInterpolationMode.NEAREST,
-            maxInterp = TextureInterpolationMode.NEAREST
-        )
-
-        log.trace { "Creating Crosshair Shader" }
-        crosshairShader.createVertexShader(IOUtil.loadResource("/shaders/crosshair.vertex.glsl"))
-        crosshairShader.createFragmentShader(IOUtil.loadResource("/shaders/crosshair.fragment.glsl"))
-        crosshairShader.link()
-
-        log.trace { "Creating Crosshair Mesh" }
-        crosshairMesh.setVertices(floatArrayOf(
-            -1f, 1f, 0f, 1f,
-            1f, 1f, 1f, 1f,
-            -1f, -1f, 0f, 0f,
-            1f, -1f, 1f, 0f
-        ), GLDataUsage.STATIC, Vec2VertexAttribute("aPos"), Vec2VertexAttribute("aUV"))
-        crosshairMesh.setIndexData(intArrayOf(
-            0, 2, 1,
-            2, 3, 1
-        ), GLDataUsage.STATIC)
-        crosshairMesh.bound {
-            crosshairShader.validate()
-        }
     }
 
     override fun register(application: Frontend) {
@@ -208,12 +178,12 @@ class MainScreen : Screen {
         world.update()
         world.draw(cameraController.camera, playerInput)
 
-        crosshairShader.bound {
-            crosshairTexture.bound(0) {
-                GL20.glUniform1i(crosshairShader.getUniform("crosshairImage"), 0)
-                GL20.glUniform2f(crosshairShader.getUniform("frameSize"), application.fWidth.toFloat(), application.fHeight.toFloat())
-                GL20.glUniform1f(crosshairShader.getUniform("crosshairSize"), 16f)
-                crosshairMesh.draw()
+        FrontendProxy.crosshairShader.bound {
+            FrontendProxy.crosshairTexture.bound(0) {
+                GL20.glUniform1i(FrontendProxy.crosshairShader.getUniform("crosshairImage"), 0)
+                GL20.glUniform2f(FrontendProxy.crosshairShader.getUniform("frameSize"), application.fWidth.toFloat(), application.fHeight.toFloat())
+                GL20.glUniform1f(FrontendProxy.crosshairShader.getUniform("crosshairSize"), 16f)
+                FrontendProxy.crosshairMesh.draw()
             }
         }
 
@@ -230,8 +200,5 @@ class MainScreen : Screen {
     override fun cleanup() {
         log.trace { "Cleaning up Main rendering screen" }
         world.cleanup()
-        crosshairMesh.cleanup()
-        crosshairShader.cleanup()
-        crosshairTexture.cleanup()
     }
 }
