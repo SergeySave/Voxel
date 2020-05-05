@@ -15,15 +15,19 @@ import java.util.Arrays
 open class Chunk(val position: ChunkPosition) {
     private val blocks = Array<Block<*>>(SIZE * SIZE * SIZE) { Air }
     private val states = Array<BlockState>(SIZE * SIZE * SIZE) { DefaultBlockState }
+    var generated = false
 
     open fun reset() {
         Arrays.fill(blocks, Air)
         Arrays.fill(states, DefaultBlockState)
+        generated = false
     }
 
     fun <T : BlockState> setBlock(localPosition: BlockPosition, block: Block<T>, state: T) {
-        blocks[localPosition.x + localPosition.y * SIZE + localPosition.z * SIZE * SIZE] = block
-        states[localPosition.x + localPosition.y * SIZE + localPosition.z * SIZE * SIZE] = state
+        synchronized(this) {
+            blocks[localPosition.x + localPosition.y * SIZE + localPosition.z * SIZE * SIZE] = block
+            states[localPosition.x + localPosition.y * SIZE + localPosition.z * SIZE * SIZE] = state
+        }
     }
 
     fun getBlock(localPosition: BlockPosition): Block<*> {
@@ -32,6 +36,13 @@ open class Chunk(val position: ChunkPosition) {
 
     fun getBlockState(localPosition: BlockPosition): BlockState {
         return states[localPosition.x + localPosition.y * SIZE + localPosition.z * SIZE * SIZE]
+    }
+
+    fun getBlockAndState(localPosition: BlockPosition, blockStore: Array<Block<*>>): BlockState {
+        synchronized(this) {
+            blockStore[0] = blocks[localPosition.x + localPosition.y * SIZE + localPosition.z * SIZE * SIZE]
+            return states[localPosition.x + localPosition.y * SIZE + localPosition.z * SIZE * SIZE]
+        }
     }
 
     override fun toString(): String {

@@ -5,6 +5,8 @@ import com.sergeysav.voxel.common.block.Block
 import com.sergeysav.voxel.common.block.impl.Air
 import com.sergeysav.voxel.common.block.impl.Dirt
 import com.sergeysav.voxel.common.block.impl.Grass
+import com.sergeysav.voxel.common.block.impl.Leaves
+import com.sergeysav.voxel.common.block.impl.Log
 import com.sergeysav.voxel.common.block.impl.Stone
 import com.sergeysav.voxel.common.block.impl.Test
 import mu.KotlinLogging
@@ -23,6 +25,8 @@ abstract class CommonProxy : SidedProxy {
         blocks.add(Stone)
         blocks.add(Grass)
         blocks.add(Test)
+        blocks.add(Log)
+        blocks.add(Leaves)
     }
 
     override fun initialize(mainThreadRunner: MainThreadRunner) {

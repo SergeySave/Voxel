@@ -12,6 +12,7 @@ import com.sergeysav.voxel.common.block.Block
 import com.sergeysav.voxel.common.block.BlockPosition
 import com.sergeysav.voxel.common.block.MutableBlockPosition
 import com.sergeysav.voxel.common.block.impl.Air
+import com.sergeysav.voxel.common.block.impl.Leaves
 import com.sergeysav.voxel.common.block.impl.Test
 import com.sergeysav.voxel.common.block.state.BlockState
 import com.sergeysav.voxel.common.block.state.DefaultBlockState
@@ -57,7 +58,7 @@ class ClientWorld(
 
     init {
         log.info { "Initializing Client World" }
-        chunkManager.initialize(this::releaseChunk) { clientChunk ->
+        chunkManager.initialize(this, this::releaseChunk) { clientChunk ->
             clientChunk.loaded = true
             worldMeshingManager.notifyMeshDirty(clientChunk)
 
@@ -146,6 +147,37 @@ class ClientWorld(
                         chunks[it]?.let { c -> worldMeshingManager.notifyMeshDirty(c) }
                     }
                 }
+            }
+        }
+    }
+
+    override fun <T : BlockState> setBlockOrMeta(blockPosition: BlockPosition, block: Block<T>, blockState: T) {
+        chunkPosPool.with { chunkPos ->
+            chunkPos.setToChunkOf(blockPosition)
+            blockPosPool.with { blockPos ->
+                blockPos.set(blockPosition)
+                blockPos.setToChunkLocal()
+                var chunk = chunks[chunkPos]
+                if (chunk != null) {
+                    chunk.setBlock(blockPos, block, blockState)
+                    if (chunk.loaded) {
+                        worldMeshingManager.notifyMeshDirty(chunk)
+                        chunkManager.notifyChunkDirty(chunk)
+
+                        chunkPosPool.with {
+                            for (d in Direction.all) {
+                                it.set(chunkPos)
+                                it.x += d.relX
+                                it.y += d.relY
+                                it.z += d.relZ
+                                chunks[it]?.let { c -> worldMeshingManager.notifyMeshDirty(c) }
+                            }
+                        }
+                    }
+                } else {
+                    chunkManager.setUnloadedChunkBlock(chunkPos, blockPos, block, blockState)
+                }
+
             }
         }
     }

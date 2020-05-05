@@ -1,7 +1,9 @@
 package com.sergeysav.voxel.client
 
+import com.sergeysav.voxel.client.block.AxialSolidBlockMesher
 import com.sergeysav.voxel.client.block.ClientBlockMesher
 import com.sergeysav.voxel.client.block.GrassBlockMesher
+import com.sergeysav.voxel.client.block.LeavesBlockMesher
 import com.sergeysav.voxel.client.block.NoMeshBlockMesher
 import com.sergeysav.voxel.client.block.RandomizedSolidBlockMesher
 import com.sergeysav.voxel.client.block.SolidBlockMesher
@@ -24,6 +26,8 @@ import com.sergeysav.voxel.common.block.Block
 import com.sergeysav.voxel.common.block.impl.Air
 import com.sergeysav.voxel.common.block.impl.Dirt
 import com.sergeysav.voxel.common.block.impl.Grass
+import com.sergeysav.voxel.common.block.impl.Leaves
+import com.sergeysav.voxel.common.block.impl.Log
 import com.sergeysav.voxel.common.block.impl.Stone
 import com.sergeysav.voxel.common.block.impl.Test
 import com.sergeysav.voxel.common.block.state.BlockState
@@ -75,6 +79,11 @@ object FrontendProxy : CommonProxy() {
             side = getTextureResource("grass_side")
         ))
         registerBlockMesher(Test, SolidBlockMesher(getTextureResource("test")))
+        registerBlockMesher(Log, AxialSolidBlockMesher(
+            getTextureResource("log_side"),
+            getTextureResource("log_section")
+        ))
+        registerBlockMesher(Leaves, LeavesBlockMesher(getTextureResource("leaves")))
 
         val shaderLoader = mainThreadRunner.runOnMainThread {
             val voxelShader = ShaderProgram()

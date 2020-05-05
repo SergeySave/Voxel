@@ -26,5 +26,8 @@ void main()
     vec3 lighting = fs_in.lighting;
     vec2 coord = vec2(fs_in.atlasData.x + u * fs_in.atlasData.z, fs_in.atlasData.y + v * fs_in.atlasData.w);
     vec4 texel = texture(atlasPage0, coord);
-    FragColor = vec4(lighting * texel.rgb, texel.a);
+    if (texel.a <= 0.0) {
+        discard;
+    }
+    FragColor = vec4(lighting * texel.rgb, 1.0);
 }

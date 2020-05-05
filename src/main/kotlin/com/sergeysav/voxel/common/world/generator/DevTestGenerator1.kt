@@ -11,6 +11,7 @@ import com.sergeysav.voxel.common.noise.noiseGenerator
 import com.sergeysav.voxel.common.noise.noiseGenerator2d
 import com.sergeysav.voxel.common.pool.LocalObjectPool
 import com.sergeysav.voxel.common.pool.with
+import com.sergeysav.voxel.common.world.World
 import mu.KotlinLogging
 import kotlin.math.floor
 
@@ -32,7 +33,7 @@ class DevTestGenerator1 : ChunkGenerator<Chunk> {
         log.trace { "Initializing Chunk Generator" }
     }
 
-    override fun generateChunk(chunk: Chunk) {
+    override fun generateChunk(chunk: Chunk, world: World<Chunk>) {
         blockPosPool.with { blockPos ->
             for (i in 0 until 16) {
                 blockPos.x = i

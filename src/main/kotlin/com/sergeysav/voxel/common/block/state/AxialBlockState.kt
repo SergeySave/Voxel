@@ -7,6 +7,15 @@ import com.sergeysav.voxel.common.data.Direction
  */
 open class AxialBlockState(val axis: Direction) : BlockState {
     companion object {
-        val states = Direction.all.map { AxialBlockState(it) }
+        init {
+            Direction.ensureLoaded()
+        }
+        val north = AxialBlockState(Direction.North)
+        val east = AxialBlockState(Direction.East)
+        val south = AxialBlockState(Direction.South)
+        val west = AxialBlockState(Direction.West)
+        val up = AxialBlockState(Direction.Up)
+        val down = AxialBlockState(Direction.Down)
+        val states = listOf(west, south, up, east, north, down)
     }
 }

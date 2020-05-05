@@ -46,6 +46,9 @@ sealed class Direction(val textureAxis: Int, val relX: Int, val relY: Int, val r
     }
 
     companion object {
+        fun ensureLoaded() {
+
+        }
         val all = listOf(West, South, Up, East, North, Down)
     }
 }

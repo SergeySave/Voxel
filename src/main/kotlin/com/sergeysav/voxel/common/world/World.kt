@@ -15,6 +15,12 @@ import org.joml.Vector3fc
 interface World<out C : Chunk> {
 
     fun <T : BlockState> setBlock(blockPosition: BlockPosition, block: Block<T>, blockState: T)
+
+    /**
+     * This should only be used by terrain generation
+     */
+    fun <T : BlockState> setBlockOrMeta(blockPosition: BlockPosition, block: Block<T>, blockState: T)
+
     fun getBlock(blockPosition: BlockPosition): Block<*>?
     fun getBlockState(blockPosition: BlockPosition): BlockState?
 

@@ -25,8 +25,10 @@ import com.sergeysav.voxel.common.IOUtil
 import com.sergeysav.voxel.common.block.MutableBlockPosition
 import com.sergeysav.voxel.common.bound
 import com.sergeysav.voxel.common.chunk.queuing.ClosestChunkQueuingStrategy
+import com.sergeysav.voxel.common.chunk.queuing.RandomChunkQueuingStrategy
 import com.sergeysav.voxel.common.world.chunks.RegionThreadedChunkManager
 import com.sergeysav.voxel.common.world.generator.DevTestGenerator1
+import com.sergeysav.voxel.common.world.generator.DevTestGenerator2
 import com.sergeysav.voxel.common.world.loading.DistanceWorldLoadingStrategy
 import com.sergeysav.voxel.common.world.loading.SimpleUnionWorldLoadingManager
 import mu.KotlinLogging
@@ -59,7 +61,7 @@ class GameScreen(graphicsSettings: GraphicsSettings) : Screen {
     private val chunkManager = RegionThreadedChunkManager(
         loadingChunkQueuingStrategy,
         savingChunkQueuingStrategy,
-        DevTestGenerator1(),
+        DevTestGenerator2(0),
         regionFilesBasePath = graphicsSettings.chunkManagerSettings.regionFilesBasePath,
         processingQueueSize = graphicsSettings.chunkManagerSettings.loadingQueueSize,
         savingQueueSize = graphicsSettings.chunkManagerSettings.savingQueueSize,

@@ -15,7 +15,7 @@ import com.sergeysav.voxel.common.data.Direction
 class AxialSolidBlockMesher<B : Block<out S>, S : AxialBlockState>(
     sideTexture: TextureResource,
     private val facingTexture: TextureResource,
-    private val backTexture: TextureResource
+    private val backTexture: TextureResource = facingTexture
 ) : SolidBlockMesher<B, S>(sideTexture) {
 
     override fun getAxisTexture(pos: BlockPosition, block: B, state: S, direction: Direction): TextureResource = when (direction) {

@@ -4,6 +4,7 @@ import com.sergeysav.voxel.common.chunk.ChunkPosition
 import com.sergeysav.voxel.common.pool.LocalObjectPool
 import com.sergeysav.voxel.common.pool.ObjectPool
 import com.sergeysav.voxel.common.pool.with
+import mu.KotlinLogging
 import java.nio.channels.FileChannel
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.BlockingQueue
@@ -20,6 +21,7 @@ class RegionManagerThread(
 ) : Thread() {
 
     private var alive = false
+    private val log = KotlinLogging.logger {  }
 
     init {
         this.name = name
@@ -27,6 +29,7 @@ class RegionManagerThread(
     }
 
     private val regions = ArrayList<Region>(10)
+    private var index = 0
 
     private val addQueue: BlockingQueue<MutableRegionPosition> = ArrayBlockingQueue(addRemoveQueueSize)
 //    private val removeQueue: BlockingQueue<MutableRegionPosition> = ArrayBlockingQueue(addRemoveQueueSize)
@@ -47,7 +50,7 @@ class RegionManagerThread(
                 }
             } while (added != null)
             for (i in regions.lastIndex downTo 0) {
-                if (regions[i].numLoadedChunks.get() == 0) {
+                if (regions[i].loadedChunks.size == 0) {
                     regions[i].emptyFor++
                     if (regions[i].emptyFor == 100) {
                         regions.removeAt(i)
@@ -55,6 +58,16 @@ class RegionManagerThread(
                 } else {
                     regions[i].emptyFor = 0
                 }
+            }
+            if (index >= regions.size) {
+                index = 0
+            }
+            try {
+                if (regions.size > 0) {
+                    regions[index++].trySaveOldChunkMetas()
+                }
+            } catch (e: Exception) {
+                log.error(e) { "An error occurred trying to save old chunk metas" }
             }
         }
     }
@@ -83,5 +96,8 @@ class RegionManagerThread(
 
     fun cancel() {
         alive = false
+        for (region in regions) {
+            region.cleanup()
+        }
     }
 }
