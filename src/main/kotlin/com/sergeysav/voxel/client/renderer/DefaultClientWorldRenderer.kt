@@ -38,7 +38,8 @@ class DefaultClientWorldRenderer : ClientWorldRenderer {
         cameraAABBChecker.update(camera)
 
         visibleChunks.clear()
-        for (chunk in chunks) {
+        for (i in chunks.indices) {
+            val chunk = chunks[i]
             if (chunk.loaded && (chunk.opaqueMesh != null || chunk.translucentMesh != null)) {
                 val x = chunk.position.x * Chunk.SIZE.toFloat()
                 val y = chunk.position.y * Chunk.SIZE.toFloat()
@@ -57,11 +58,13 @@ class DefaultClientWorldRenderer : ClientWorldRenderer {
                     GL20.glUniform1i(FrontendProxy.voxelShader.getUniform("atlasPage0"), 1)
 
                     // Sort chunks in based on the direction that the camera is facing (dot product)
+                    // NOTE: this causes an instantiation of java.util.TimSort
                     visibleChunks.sortBy { (it.position.x + 0.5) * Chunk.SIZE * camera.direction.x() +
                             (it.position.y + 0.5) * Chunk.SIZE * camera.direction.y() +
                             (it.position.z + 0.5) * Chunk.SIZE * camera.direction.z() }
 
-                    for (chunk in visibleChunks) {
+                    for (i in visibleChunks.indices) {
+                        val chunk = visibleChunks[i]
                         val mesh = chunk.opaqueMesh
                         if (mesh != null && mesh.indexCount > 0) {
                             model.identity()
@@ -84,7 +87,8 @@ class DefaultClientWorldRenderer : ClientWorldRenderer {
                     visibleChunks.reverse()
 
                     GL11.glDepthMask(false)
-                    for (chunk in visibleChunks) {
+                    for (i in visibleChunks.indices) {
+                        val chunk = visibleChunks[i]
                         val mesh = chunk.translucentMesh
                         if (mesh != null && mesh.indexCount > 0) {
                             model.identity()

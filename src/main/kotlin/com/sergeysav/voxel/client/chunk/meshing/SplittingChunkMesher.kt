@@ -64,7 +64,7 @@ class SplittingChunkMesher(
                     globalBlockPos.y += chunk.position.y * Chunk.SIZE
                     globalBlockPos.z += chunk.position.z * Chunk.SIZE
                     val mesher = Voxel.getBlockMesher<ChunkMesherCallback, Block<BlockState>, BlockState>(block) as ClientBlockMesher<Block<BlockState>, BlockState>?
-                    mesher?.addToMesh(opaqueCallback, translucentCallback, globalBlockPos, block, blockState)
+                    mesher?.addToMesh(opaqueCallback, translucentCallback, globalBlockPos, block, blockState, world)
                 }
             }
         }
@@ -180,13 +180,19 @@ class SplittingChunkMesher(
             indices += 3
         }
 
-        override fun addAAQuad(inset: Double,
-                               l1: Double, u1: Double, r1: Double, g1: Double, b1: Double,
-                               l2: Double, u2: Double, r2: Double, g2: Double, b2: Double,
-                               l3: Double, u3: Double, r3: Double, g3: Double, b3: Double,
-                               l4: Double, u4: Double, r4: Double, g4: Double, b4: Double,
-                               texture: TextureResource, facing: Direction, rotation: BlockTextureRotation,
-                               reflection: BlockTextureReflection, border: Boolean, doubleRender: Boolean) {
+        override fun addAAQuad(
+            inset: Double,
+            l1: Double, u1: Double, r1: Double, g1: Double, b1: Double,
+            l2: Double, u2: Double, r2: Double, g2: Double, b2: Double,
+            l3: Double, u3: Double, r3: Double, g3: Double, b3: Double,
+            l4: Double, u4: Double, r4: Double, g4: Double, b4: Double,
+            texture: TextureResource,
+            facing: Direction,
+            rotation: BlockTextureRotation,
+            reflection: BlockTextureReflection,
+            border: Boolean,
+            applyDefaultLighting: Boolean
+        ): Boolean {
             // Adjacency optimization
             if (border) {
                 blockPos2.x = blockPos.x + facing.relX + chunk.position.x * 16
@@ -196,12 +202,10 @@ class SplittingChunkMesher(
                 if (block != null) {
                     @Suppress("UNCHECKED_CAST")
                     val mesher = Voxel.getBlockMesher<ChunkMesherCallback, Block<BlockState>, BlockState>(block as Block<BlockState>) as ClientBlockMesher<Block<BlockState>, BlockState>?
-                    if (mesher?.shouldOpaqueAdjacentHideFace(facing.opposite) == true) return
-                    if (transparent && mesher?.shouldTransparentAdjacentHideFace(facing.opposite) == true) return
+                    if (mesher?.shouldOpaqueAdjacentHideFace(facing.opposite) == true) return false
+                    if (transparent && mesher?.shouldTransparentAdjacentHideFace(facing.opposite) == true) return false
                 }
             }
-            // Transparent things should be rendered into both meshes
-            if (transparent && doubleRender) opaqueCallback.addAAQuad(inset, l1, u1, r1, g1, b1, l2, u2, r2, g2, b2, l3, u3, r3, g3, b3, l4, u4, r4, g4, b4, texture, facing, rotation, reflection, border, false)
 
             val baseX = facing.relX * 0.5 + facing.left.opposite.relX * 0.5 + facing.up.opposite.relX * 0.5 + 0.5
             val baseY = facing.relY * 0.5 + facing.left.opposite.relY * 0.5 + facing.up.opposite.relY * 0.5 + 0.5
@@ -234,6 +238,8 @@ class SplittingChunkMesher(
 
             addTriangle(v1, v2, v3)
             addTriangle(v3, v2, v4)
+
+            return true
         }
     }
 }

@@ -7,7 +7,7 @@ import com.sergeysav.voxel.common.block.state.BlockState
 /**
  * @author sergeys
  *
- * @constructor Creates a new TestBlockMesher
+ * @constructor Creates a new WaterBlockMesher
  */
 open class WaterBlockMesher<B : Block<out S>, S : BlockState>(
     texture: TextureResource

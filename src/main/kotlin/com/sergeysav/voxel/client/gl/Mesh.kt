@@ -50,13 +50,16 @@ class Mesh(private var glDrawingMode: GLDrawingMode, private val useIBOs: Boolea
                 GL20.glEnableVertexAttribArray(index)
                 offset += attribute.totalLength
             }
+
+            if (useIBOs) {
+                ibo.bind()
+            }
         }
         fullyInitialized = true
     }
     
     fun setVertexData(data: FloatArray) {
         vao.bound {
-            vbo.bind()
             vbo.setData(data, vertexGLDataUsage)
         }
     }
@@ -87,13 +90,16 @@ class Mesh(private var glDrawingMode: GLDrawingMode, private val useIBOs: Boolea
                 GL20.glEnableVertexAttribArray(index)
                 offset += attribute.totalLength
             }
+
+            if (useIBOs) {
+                ibo.bind()
+            }
         }
         fullyInitialized = true
     }
 
     fun setVertexData(data: IntBuffer) {
         vao.bound {
-            vbo.bind()
             vbo.setData(data, vertexGLDataUsage)
         }
     }
@@ -132,8 +138,6 @@ class Mesh(private var glDrawingMode: GLDrawingMode, private val useIBOs: Boolea
     
     fun bound(inner: ()->Unit) {
         vao.bound {
-            vbo.bind()
-            ibo.bind()
             inner()
         }
     }

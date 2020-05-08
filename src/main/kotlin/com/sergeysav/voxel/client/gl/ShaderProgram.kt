@@ -81,10 +81,19 @@ class ShaderProgram @Throws(ShaderException::class) constructor():
         }
     }
     
-    fun getAttribute(attribute: String) =
-            attributes.computeIfAbsent(attribute) { GL20.glGetAttribLocation(programId, attribute) }
+    fun getAttribute(attribute: String): Int {
+        if (attributes.containsKey(attribute)) return attributes[attribute]!!
+        val value = GL20.glGetAttribLocation(programId, attribute)
+        attributes[attribute] = value
+        return value
+    }
 
-    fun getUniform(uniform: String) = uniforms.computeIfAbsent(uniform) { GL20.glGetUniformLocation(programId, uniform) }
+    fun getUniform(uniform: String): Int {
+        if (uniforms.containsKey(uniform)) return uniforms[uniform]!!
+        val value = GL20.glGetUniformLocation(programId, uniform)
+        uniforms[uniform] = value
+        return value
+    }
     
     override fun bind() {
         if (!bound) {

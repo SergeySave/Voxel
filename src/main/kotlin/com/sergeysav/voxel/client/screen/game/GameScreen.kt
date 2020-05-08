@@ -91,7 +91,7 @@ class GameScreen(graphicsSettings: GraphicsSettings) : Screen {
         this.application = application
 
         log.trace { "Setting up OpenGL Context for Main rendering" }
-        GL11.glClearColor(0f, 0f, 0f, 0f)
+        GL11.glClearColor(0f, 0f, 0.2f, 0f)
 
         log.trace { "Setting up Frontend inputs" }
         application.setInputMode(GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_DISABLED)

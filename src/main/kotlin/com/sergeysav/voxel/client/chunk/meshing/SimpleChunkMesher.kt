@@ -64,7 +64,7 @@ class SimpleChunkMesher(
                     globalBlockPos.y += chunk.position.y * Chunk.SIZE
                     globalBlockPos.z += chunk.position.z * Chunk.SIZE
                     Voxel.getBlockMesher<ChunkMesherCallback, Block<BlockState>, BlockState>(block)
-                        ?.addToMesh(this, this, globalBlockPos, block, blockState)
+                        ?.addToMesh(this, this, globalBlockPos, block, blockState, world)
                 }
             }
         }
@@ -147,13 +147,19 @@ class SimpleChunkMesher(
         indices += 3
     }
 
-    override fun addAAQuad(inset: Double,
-                           l1: Double, u1: Double, r1: Double, g1: Double, b1: Double,
-                           l2: Double, u2: Double, r2: Double, g2: Double, b2: Double,
-                           l3: Double, u3: Double, r3: Double, g3: Double, b3: Double,
-                           l4: Double, u4: Double, r4: Double, g4: Double, b4: Double,
-                           texture: TextureResource, facing: Direction, rotation: BlockTextureRotation,
-                           reflection: BlockTextureReflection, border: Boolean, doubleRender: Boolean) {
+    override fun addAAQuad(
+        inset: Double,
+        l1: Double, u1: Double, r1: Double, g1: Double, b1: Double,
+        l2: Double, u2: Double, r2: Double, g2: Double, b2: Double,
+        l3: Double, u3: Double, r3: Double, g3: Double, b3: Double,
+        l4: Double, u4: Double, r4: Double, g4: Double, b4: Double,
+        texture: TextureResource,
+        facing: Direction,
+        rotation: BlockTextureRotation,
+        reflection: BlockTextureReflection,
+        border: Boolean,
+        applyDefaultLighting: Boolean
+    ): Boolean {
         // Adjacency optimization
         if (border) {
             blockPos2.x = blockPos.x + facing.relX + chunk.position.x * 16
@@ -163,7 +169,7 @@ class SimpleChunkMesher(
             if (block != null) {
                 @Suppress("UNCHECKED_CAST")
                 val mesher = Voxel.getBlockMesher<ChunkMesherCallback, Block<BlockState>, BlockState>(block as Block<BlockState>) as ClientBlockMesher<Block<BlockState>, BlockState>?
-                if (mesher?.shouldOpaqueAdjacentHideFace(facing.opposite) == true) return
+                if (mesher?.shouldOpaqueAdjacentHideFace(facing.opposite) == true) return false
             }
         }
 
@@ -198,5 +204,7 @@ class SimpleChunkMesher(
 
         addTriangle(v1, v2, v3)
         addTriangle(v3, v2, v4)
+
+        return true
     }
 }

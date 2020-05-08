@@ -16,15 +16,18 @@ open class Chunk(val position: ChunkPosition) {
     private val blocks = Array<Block<*>>(SIZE * SIZE * SIZE) { Air }
     private val states = Array<BlockState>(SIZE * SIZE * SIZE) { DefaultBlockState }
     var generated = false
+    var needsSaving = false
 
     open fun reset() {
         Arrays.fill(blocks, Air)
         Arrays.fill(states, DefaultBlockState)
         generated = false
+        needsSaving = false
     }
 
     fun <T : BlockState> setBlock(localPosition: BlockPosition, block: Block<T>, state: T) {
         synchronized(this) {
+            needsSaving = true
             blocks[localPosition.x + localPosition.y * SIZE + localPosition.z * SIZE * SIZE] = block
             states[localPosition.x + localPosition.y * SIZE + localPosition.z * SIZE * SIZE] = state
         }

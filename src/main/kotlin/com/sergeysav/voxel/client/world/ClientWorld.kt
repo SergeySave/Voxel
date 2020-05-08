@@ -160,7 +160,7 @@ class ClientWorld(
             blockPosPool.with { blockPos ->
                 blockPos.set(blockPosition)
                 blockPos.setToChunkLocal()
-                val chunk = chunks[chunkPos]
+                var chunk = chunks[chunkPos]
                 if (chunk != null) {
                     chunk.setBlock(blockPos, block, blockState)
                     if (chunk.loaded) {
@@ -179,8 +179,27 @@ class ClientWorld(
                     }
                 } else {
                     chunkManager.setUnloadedChunkBlock(chunkPos, blockPos, block, blockState)
-                }
 
+                    // Incase the chunk was loaded in the mean time: try to set its block again
+                    chunk = chunks[chunkPos]
+                    if (chunk != null) {
+                        chunk.setBlock(blockPos, block, blockState)
+                        if (chunk.loaded) {
+                            worldMeshingManager.notifyMeshDirty(chunk)
+                            chunkManager.notifyChunkDirty(chunk)
+
+                            chunkPosPool.with {
+                                for (d in Direction.all) {
+                                    it.set(chunkPos)
+                                    it.x += d.relX
+                                    it.y += d.relY
+                                    it.z += d.relZ
+                                    chunks[it]?.let { c -> worldMeshingManager.notifyMeshDirty(c) }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

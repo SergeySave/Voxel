@@ -14,5 +14,6 @@ open class TestBlockMesher<B : Block<out S>, S : BlockState>(
 ) : SolidBlockMesher<B, S>(texture) {
 
     override val opaque: Boolean = false
+    override val doubleRender: Boolean = true
     override val translucent: Boolean = true
 }

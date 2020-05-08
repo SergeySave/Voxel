@@ -103,7 +103,7 @@ abstract class GuiWindow(val windowName: String) {
             Nuklear.nk_spacing(gui.context, columns)
         }
 
-        fun label(text: String, hAlign: HAlign = HAlign.LEFT, vAlign: VAlign = VAlign.MIDDLE) {
+        fun label(text: CharSequence, hAlign: HAlign = HAlign.LEFT, vAlign: VAlign = VAlign.MIDDLE) {
             Nuklear.nk_label(gui.context, text, hAlign.id or vAlign.id)
         }
 

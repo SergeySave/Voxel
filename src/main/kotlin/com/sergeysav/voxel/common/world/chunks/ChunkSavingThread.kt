@@ -39,7 +39,9 @@ class ChunkSavingThread<C : Chunk>(
                 continue
             }
 
-            region.saveChunk(c)
+            if (c.needsSaving) {
+                region.saveChunk(c)
+            }
             callback(c)
         }
     }
