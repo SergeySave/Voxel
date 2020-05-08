@@ -7,18 +7,18 @@ import org.lwjgl.opengl.GL33C
 /**
  * @author sergeys
  *
- * @constructor Creates a new Framebuffer
+ * @constructor Creates a new Renderbuffer
  */
-inline class Framebuffer(val id: Int): Bindable {
+inline class Renderbuffer(val id: Int): Bindable {
     override fun bind() {
-        GL33C.glBindFramebuffer(GL33C.GL_FRAMEBUFFER, id)
+        GL33C.glBindRenderbuffer(GL33C.GL_RENDERBUFFER, id)
     }
     
     override fun unbind() {
-        GL33C.glBindFramebuffer(GL33C.GL_FRAMEBUFFER, 0)
+        GL33C.glBindRenderbuffer(GL33C.GL_RENDERBUFFER, 0)
     }
 
     fun cleanup() {
-        GL30.glDeleteFramebuffers(id)
+        GL30.glDeleteRenderbuffers(id)
     }
 }

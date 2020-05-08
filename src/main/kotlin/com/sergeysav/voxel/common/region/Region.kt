@@ -162,7 +162,6 @@ class Region(
 
     fun saveChunk(chunk: Chunk) {
         // We need to be sure that nothing else modifies the chunk table buffer while we need it
-
         synchronized(chunkTableBuffer) {
             saveChunkInner(chunk)
         }
@@ -196,7 +195,8 @@ class Region(
                 }
 
                 metaUpdateChunkPool.with { chunk ->
-                    for (pos in chunkUpdates) {
+                    for (i in chunkUpdates.indices) {
+                        val pos = chunkUpdates[i]
                         (chunk.position as MutableChunkPosition).set(pos)
                         chunk.reset()
                         synchronized(chunkTableBuffer) {

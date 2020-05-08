@@ -15,7 +15,8 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 class ClientChunk(position: ChunkPosition) : Chunk(position) {
 
-    var mesh: Mesh? = null
+    var opaqueMesh: Mesh? = null
+    var translucentMesh: Mesh? = null
     var isMeshEmpty = true
     var loaded = false
     var adjacentLoadedChunks = AtomicInteger(0)
@@ -23,8 +24,10 @@ class ClientChunk(position: ChunkPosition) : Chunk(position) {
     override fun reset() {
         isMeshEmpty = true
         loaded = false
-        mesh?.let { meshPool.put(it) }
-        mesh = null
+        opaqueMesh?.let { meshPool.put(it) }
+        opaqueMesh = null
+        translucentMesh?.let { meshPool.put(it) }
+        translucentMesh = null
         adjacentLoadedChunks.set(0)
         super.reset()
     }

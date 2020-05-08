@@ -5,29 +5,19 @@ import com.sergeysav.voxel.client.FrontendProxy
 import com.sergeysav.voxel.client.camera.Camera
 import com.sergeysav.voxel.client.camera.CameraController
 import com.sergeysav.voxel.client.chunk.ClientChunk
-import com.sergeysav.voxel.client.gl.GLDataUsage
-import com.sergeysav.voxel.client.gl.GLDrawingMode
-import com.sergeysav.voxel.client.gl.Image
-import com.sergeysav.voxel.client.gl.Mesh
-import com.sergeysav.voxel.client.gl.ShaderProgram
-import com.sergeysav.voxel.client.gl.Texture2D
-import com.sergeysav.voxel.client.gl.TextureInterpolationMode
-import com.sergeysav.voxel.client.gl.Vec2VertexAttribute
 import com.sergeysav.voxel.client.gl.bound
-import com.sergeysav.voxel.client.gl.createTexture
 import com.sergeysav.voxel.client.player.PlayerInput
+import com.sergeysav.voxel.client.renderer.DefaultClientWorldRenderer
+import com.sergeysav.voxel.client.renderer.OITClientWorldRenderer
 import com.sergeysav.voxel.client.screen.Screen
 import com.sergeysav.voxel.client.settings.GraphicsSettings
 import com.sergeysav.voxel.client.world.ClientWorld
 import com.sergeysav.voxel.client.world.meshing.SimpleThreadedMeshingManager
 import com.sergeysav.voxel.client.world.meshing.selection.PriorityMeshSelectionStrategy
-import com.sergeysav.voxel.common.IOUtil
 import com.sergeysav.voxel.common.block.MutableBlockPosition
 import com.sergeysav.voxel.common.bound
 import com.sergeysav.voxel.common.chunk.queuing.ClosestChunkQueuingStrategy
-import com.sergeysav.voxel.common.chunk.queuing.RandomChunkQueuingStrategy
 import com.sergeysav.voxel.common.world.chunks.RegionThreadedChunkManager
-import com.sergeysav.voxel.common.world.generator.DevTestGenerator1
 import com.sergeysav.voxel.common.world.generator.DevTestGenerator2
 import com.sergeysav.voxel.common.world.loading.DistanceWorldLoadingStrategy
 import com.sergeysav.voxel.common.world.loading.SimpleUnionWorldLoadingManager
@@ -72,7 +62,8 @@ class GameScreen(graphicsSettings: GraphicsSettings) : Screen {
     private val world = ClientWorld(
         SimpleUnionWorldLoadingManager(distanceWorldLoadingStrategy),
         meshingManager,
-        chunkManager
+        chunkManager,
+        DefaultClientWorldRenderer()
     )
     private var callback: ((Double, Double)->Boolean)? = null
     private var firstMouse = true
@@ -92,24 +83,15 @@ class GameScreen(graphicsSettings: GraphicsSettings) : Screen {
     private val debugUI = DebugUI()
 
     init {
-        cameraController.setPos(0f, 10f, 0f)
+        cameraController.setPos(10f, 7.5f, -5f)
+        cameraController.lookAt(-5f, -5f, 15f)
     }
 
     override fun register(application: Frontend) {
         this.application = application
+
         log.trace { "Setting up OpenGL Context for Main rendering" }
-        GL11.glClearColor(0f, 0f, 0.2f, 0f)
-        GL11.glEnable(GL11.GL_DEPTH_TEST)
-        GL11.glDepthFunc(GL11.GL_LESS)
-
-        GL11.glEnable(GL11.GL_CULL_FACE)
-        GL11.glCullFace(GL11.GL_BACK)
-//        GL11.glCullFace(GL11.GL_FRONT)
-
-        GL11.glEnable(GL11.GL_BLEND)
-        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA)
-
-//        GL11.glPolygonMode( GL11.GL_FRONT_AND_BACK, GL11.GL_LINE )
+        GL11.glClearColor(0f, 0f, 0f, 0f)
 
         log.trace { "Setting up Frontend inputs" }
         application.setInputMode(GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_DISABLED)
@@ -179,14 +161,14 @@ class GameScreen(graphicsSettings: GraphicsSettings) : Screen {
         blockPos.z = cameraController.camera.position.z().roundToInt()//.divisionQuotient(Chunk.SIZE)
 
         world.update()
-        world.draw(cameraController.camera, playerInput)
+        world.draw(cameraController.camera, playerInput, application.fWidth, application.fHeight)
 
         FrontendProxy.crosshairShader.bound {
             FrontendProxy.crosshairTexture.bound(0) {
                 GL20.glUniform1i(FrontendProxy.crosshairShader.getUniform("crosshairImage"), 0)
                 GL20.glUniform2f(FrontendProxy.crosshairShader.getUniform("frameSize"), application.fWidth.toFloat(), application.fHeight.toFloat())
                 GL20.glUniform1f(FrontendProxy.crosshairShader.getUniform("crosshairSize"), 16f)
-                FrontendProxy.crosshairMesh.draw()
+                FrontendProxy.screenMesh.draw()
             }
         }
 
@@ -194,6 +176,8 @@ class GameScreen(graphicsSettings: GraphicsSettings) : Screen {
         playerInput.mouseButton1JustUp = false
         playerInput.mouseButton2JustDown = false
         playerInput.mouseButton2JustUp = false
+
+//        GL11.glClearColor(0f, 0f, 0.2f, 0f) // Reset clear color
     }
 
     override fun unregister(application: Frontend) {

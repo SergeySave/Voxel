@@ -19,6 +19,6 @@ interface ChunkMesherCallback {
                   l3: Double, u3: Double, r3: Double, g3: Double, b3: Double,
                   l4: Double, u4: Double, r4: Double, g4: Double, b4: Double,
                   texture: TextureResource, facing: Direction, rotation: BlockTextureRotation,
-                  reflection: BlockTextureReflection, border: Boolean)
+                  reflection: BlockTextureReflection, border: Boolean, doubleRender: Boolean)
 
 }

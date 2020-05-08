@@ -7,13 +7,14 @@ import com.sergeysav.voxel.client.chunk.ClientChunk
 import com.sergeysav.voxel.client.gl.bound
 import com.sergeysav.voxel.client.gl.setUniform
 import com.sergeysav.voxel.client.player.PlayerInput
+import com.sergeysav.voxel.client.renderer.ClientWorldRenderer
 import com.sergeysav.voxel.client.world.meshing.WorldMeshingManager
 import com.sergeysav.voxel.common.block.Block
 import com.sergeysav.voxel.common.block.BlockPosition
 import com.sergeysav.voxel.common.block.MutableBlockPosition
 import com.sergeysav.voxel.common.block.impl.Air
-import com.sergeysav.voxel.common.block.impl.Leaves
 import com.sergeysav.voxel.common.block.impl.Test
+import com.sergeysav.voxel.common.block.impl.Water
 import com.sergeysav.voxel.common.block.state.BlockState
 import com.sergeysav.voxel.common.block.state.DefaultBlockState
 import com.sergeysav.voxel.common.bound
@@ -33,8 +34,6 @@ import com.sergeysav.voxel.common.world.raycast.RaycastResult
 import mu.KotlinLogging
 import org.joml.Matrix4f
 import org.lwjgl.opengl.GL20
-import java.util.concurrent.ArrayBlockingQueue
-import java.util.concurrent.BlockingQueue
 
 /**
  * @author sergeys
@@ -44,16 +43,16 @@ import java.util.concurrent.BlockingQueue
 class ClientWorld(
     private val worldLoadingManager: WorldLoadingManager<in ClientChunk, in ClientWorld>,
     private val worldMeshingManager: WorldMeshingManager<ClientWorld>,
-    private val chunkManager: ChunkManager<ClientChunk>
+    private val chunkManager: ChunkManager<ClientChunk>,
+    private val clientWorldRenderer: ClientWorldRenderer
 ) : World<ClientChunk> {
 
-    private val model = Matrix4f()
     private val log = KotlinLogging.logger {  }
     private val blockPosPool = LocalObjectPool({ MutableBlockPosition() }, 5)
     private val chunkPosPool = LocalObjectPool({ MutableChunkPosition() }, 5)
     private val raycastResultPool = LocalObjectPool({ RaycastResult(false, RaycastResult.RaycastOutcome.COMPLETED, MutableBlockPosition(), null, null) }, 1)
-    private val chunks = mutableMapOf<ChunkPosition, ClientChunk>()
-    private val cameraAABBChecker = CameraAABBChecker()
+    private val chunks = HashMap<ChunkPosition, ClientChunk>()
+    private val chunkList = ArrayList<ClientChunk>(4096)
     private val chunkPool: ObjectPool<ClientChunk> = SynchronizedObjectPool({ ClientChunk(MutableChunkPosition()) }, 256)
 
     init {
@@ -78,6 +77,8 @@ class ClientWorld(
                 }
             }
         }
+
+        clientWorldRenderer.initialize()
     }
 
     private fun getNewChunk(chunkPosition: ChunkPosition): ClientChunk {
@@ -100,12 +101,14 @@ class ClientWorld(
         if (!chunks.containsKey(chunkPosition)) {
             val chunk = getNewChunk(chunkPosition)
             chunks[chunk.position] = chunk
+            chunkList.add(chunk)
             chunkManager.requestLoad(chunk)
         }
     }
 
     private fun doUnload(chunkPosition: ChunkPosition) {
         chunks.remove(chunkPosition)?.let {
+            chunkList.remove(it)
             worldMeshingManager.notifyMeshUnneeded(it)
 
             chunkPosPool.with { pos ->
@@ -157,7 +160,7 @@ class ClientWorld(
             blockPosPool.with { blockPos ->
                 blockPos.set(blockPosition)
                 blockPos.setToChunkLocal()
-                var chunk = chunks[chunkPos]
+                val chunk = chunks[chunkPos]
                 if (chunk != null) {
                     chunk.setBlock(blockPos, block, blockState)
                     if (chunk.loaded) {
@@ -206,11 +209,11 @@ class ClientWorld(
 
     override fun update() {
         chunkManager.update()
-        worldLoadingManager.updateWorldLoading(this, this.chunks.values, this::doLoad, this::doUnload)
+        worldLoadingManager.updateWorldLoading(this, this.chunkList, this::doLoad, this::doUnload)
         worldMeshingManager.updateWorldMeshing(this)
     }
 
-    fun draw(camera: Camera, playerInput: PlayerInput) {
+    fun draw(camera: Camera, playerInput: PlayerInput, width: Int, height: Int) {
         if (playerInput.mouseButton1JustUp) {
             raycastResultPool.with { res ->
                 Raycast.doRaycast(this, camera.position, camera.direction, 64.0, res)
@@ -232,45 +235,19 @@ class ClientWorld(
                 }
             }
         }
-        cameraAABBChecker.update(camera)
-        FrontendProxy.voxelShader.bound {
-            camera.combined.setUniform(FrontendProxy.voxelShader.getUniform("uCamera"))
-            FrontendProxy.assetData.bound(0) {
-                GL20.glUniform1i(FrontendProxy.voxelShader.getUniform("assetData"), 0)
-                FrontendProxy.textureAtlas.bound(1) {
-                    GL20.glUniform1i(FrontendProxy.voxelShader.getUniform("atlasPage0"), 1)
-                    chunks.values.asSequence()
-                        .filter { it.loaded }
-                        .filter { it.mesh != null }
-                        .sortedBy {  // Sort chunks in based on the direction that the camera is facing (dot product)
-                            (it.position.x + 0.5) * Chunk.SIZE * camera.direction.x() +
-                                    (it.position.y + 0.5) * Chunk.SIZE * camera.direction.y() +
-                                    (it.position.z + 0.5) * Chunk.SIZE * camera.direction.z()
-                        }.forEach { c ->
-                            val mesh = c.mesh
-                            val x = c.position.x * Chunk.SIZE.toFloat()
-                            val y = c.position.y * Chunk.SIZE.toFloat()
-                            val z = c.position.z * Chunk.SIZE.toFloat()
-                            if (mesh != null && cameraAABBChecker.isAABBinCamera(x, y, z, 16f, 16f, 16f)) {
-                                model.identity()
-                                model.translate(x, y, z)
-                                model.setUniform(FrontendProxy.voxelShader.getUniform("uModel"))
-                                mesh.draw()
-                            }
-                        }
-                }
-            }
-        }
+
+        clientWorldRenderer.render(camera, chunkList, width, height)
     }
 
     override fun cleanup() {
         worldLoadingManager.cleanupWorldLoading()
         worldMeshingManager.cleanupWorldMeshing()
-        for (c in chunks.values) {
-            c.mesh?.cleanup()
+        for (i in chunkList.indices) {
+            chunkList[i].opaqueMesh?.cleanup()
         }
         blockPosPool.cleanup()
         chunkPosPool.cleanup()
         chunkManager.cleanup()
+        clientWorldRenderer.cleanup()
     }
 }

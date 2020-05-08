@@ -3,6 +3,7 @@ package com.sergeysav.voxel.client.world.meshing
 import com.sergeysav.voxel.client.chunk.meshing.ChunkMesher
 import com.sergeysav.voxel.client.chunk.ClientChunk
 import com.sergeysav.voxel.client.chunk.meshing.SimpleChunkMesher
+import com.sergeysav.voxel.client.chunk.meshing.SplittingChunkMesher
 import com.sergeysav.voxel.client.world.ClientWorld
 import com.sergeysav.voxel.client.world.meshing.selection.MeshSelectionStrategy
 import mu.KotlinLogging
@@ -26,7 +27,7 @@ class SimpleThreadedMeshingManager(
     private var alive = true
     private val dirtyQueue: BlockingQueue<ClientChunk> = ArrayBlockingQueue(meshesPerFrame)
     private val mesherQueue: BlockingQueue<ChunkMesher> = ArrayBlockingQueue(meshesPerFrame)
-    private val meshers: Array<ChunkMesher> = Array(meshesPerFrame) { SimpleChunkMesher(mesherQueue::put) }
+    private val meshers: Array<ChunkMesher> = Array(meshesPerFrame) { SplittingChunkMesher(mesherQueue::put) }
     private val selectionThread = MeshingSelectionThread(dirtyQueueSize, dirtyQueue, meshSelectionStrategy, "Mesher Selection Thread")
     private val threads = Array(parallelism) { MeshingTaskThread(mesherQueue, dirtyQueue, "Mesher Thread $it") }
 

@@ -14,22 +14,33 @@ import com.sergeysav.voxel.common.data.Direction
  */
 abstract class CubeBlockMesher<B : Block<out S>, S : BlockState> : ClientBlockMesher<B, S> {
 
+    protected abstract val translucent: Boolean
+    protected abstract val opaque: Boolean
+    protected open val doubleRender: Boolean = true
+
     abstract fun getAxisTexture(pos: BlockPosition, block: B, state: S, direction: Direction): TextureResource
 
     abstract fun getAxisRotation(pos: BlockPosition, block: B, state: S, direction: Direction): BlockTextureRotation
 
     abstract fun getAxisReflection(pos: BlockPosition, block: B, state: S, direction: Direction): BlockTextureReflection
 
-    override fun addToMesh(chunkMesher: ChunkMesherCallback, pos: BlockPosition, block: B, state: S) {
-        for (d in Direction.all) {
-            chunkMesher.addAAQuad(
+    override fun addToMesh(opaqueMesher: ChunkMesherCallback, translucentMesher: ChunkMesherCallback, pos: BlockPosition, block: B, state: S) {
+        val mesher = if (translucent) translucentMesher else opaqueMesher
+        for (i in Direction.all.indices) {
+            val d = Direction.all[i]
+            mesher.addAAQuad(
                 0.0,
                 0.0, 1.0, 1.0, 1.0, 1.0,
                 0.0, 0.0, 1.0, 1.0, 1.0,
                 1.0, 1.0, 1.0, 1.0, 1.0,
                 1.0, 0.0, 1.0, 1.0, 1.0,
-                getAxisTexture(pos, block, state, d), d, getAxisRotation(pos, block, state, d), getAxisReflection(pos, block, state, d), true
+                getAxisTexture(pos, block, state, d), d, getAxisRotation(pos, block, state, d), getAxisReflection(pos, block, state, d),
+                border = true,
+                doubleRender = doubleRender
             )
         }
     }
+
+    override fun shouldOpaqueAdjacentHideFace(side: Direction): Boolean = opaque
+    override fun shouldTransparentAdjacentHideFace(side: Direction): Boolean = translucent
 }

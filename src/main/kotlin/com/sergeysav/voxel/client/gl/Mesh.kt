@@ -20,7 +20,8 @@ class Mesh(private var glDrawingMode: GLDrawingMode, private val useIBOs: Boolea
     private val vbo = VertexBufferObject(GL15.glGenBuffers())
     private val ibo = ElementBufferObject(if (useIBOs) GL15.glGenBuffers() else 0) // 0 = null
     private var vertexCount = 0
-    private var indexCount = 0
+    var indexCount = 0
+        private set
     private lateinit var vertexGLDataUsage: GLDataUsage
     
     fun setVertices(data: FloatArray, dataUsage: GLDataUsage, vararg attributes: VertexAttribute) {

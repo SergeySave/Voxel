@@ -7,6 +7,8 @@ import com.sergeysav.voxel.client.block.LeavesBlockMesher
 import com.sergeysav.voxel.client.block.NoMeshBlockMesher
 import com.sergeysav.voxel.client.block.RandomizedSolidBlockMesher
 import com.sergeysav.voxel.client.block.SolidBlockMesher
+import com.sergeysav.voxel.client.block.TestBlockMesher
+import com.sergeysav.voxel.client.block.WaterBlockMesher
 import com.sergeysav.voxel.client.gl.GLDataUsage
 import com.sergeysav.voxel.client.gl.GLDrawingMode
 import com.sergeysav.voxel.client.gl.Image
@@ -30,6 +32,7 @@ import com.sergeysav.voxel.common.block.impl.Leaves
 import com.sergeysav.voxel.common.block.impl.Log
 import com.sergeysav.voxel.common.block.impl.Stone
 import com.sergeysav.voxel.common.block.impl.Test
+import com.sergeysav.voxel.common.block.impl.Water
 import com.sergeysav.voxel.common.block.state.BlockState
 import mu.KotlinLogging
 
@@ -45,15 +48,21 @@ object FrontendProxy : CommonProxy() {
 
     lateinit var voxelShader: ShaderProgram
         private set
+    lateinit var translucentVoxelShader: ShaderProgram
+        private set
+    lateinit var crosshairShader: ShaderProgram
+        private set
+    lateinit var compositionShader: ShaderProgram
+        private set
+    lateinit var passthroughShader: ShaderProgram
+        private set
     var textureAtlas: Texture2D = Texture2D(0)
         private set
     var assetData: Texture2D = Texture2D(0)
         private set
-    lateinit var crosshairShader: ShaderProgram
-        private set
     var crosshairTexture: Texture2D = Texture2D(0)
         private set
-    lateinit var crosshairMesh: Mesh
+    lateinit var screenMesh: Mesh
         private set
 
     fun <B : Block<out S>, S : BlockState> registerBlockMesher(block: B, mesher: ClientBlockMesher<B, S>) {
@@ -78,21 +87,36 @@ object FrontendProxy : CommonProxy() {
             down = getTextureResource("dirt"),
             side = getTextureResource("grass_side")
         ))
-        registerBlockMesher(Test, SolidBlockMesher(getTextureResource("test")))
+        registerBlockMesher(Test, TestBlockMesher(getTextureResource("test")))
         registerBlockMesher(Log, AxialSolidBlockMesher(
             getTextureResource("log_side"),
             getTextureResource("log_section")
         ))
         registerBlockMesher(Leaves, LeavesBlockMesher(getTextureResource("leaves")))
+        registerBlockMesher(Water, WaterBlockMesher(getTextureResource("water")))
 
+        log.trace { "Loading Opaque Voxel Shader" }
+        val voxelVertexShader = IOUtil.loadResource("/shaders/voxel.vertex.glsl")
+        val voxelFragmentShader = IOUtil.loadResource("/shaders/voxel.fragment.glsl")
         val shaderLoader = mainThreadRunner.runOnMainThread {
             val voxelShader = ShaderProgram()
-            voxelShader.createVertexShader(IOUtil.loadResource("/shaders/voxel.vertex.glsl"))
-            voxelShader.createFragmentShader(IOUtil.loadResource("/shaders/voxel.fragment.glsl"))
+            voxelShader.createVertexShader(voxelVertexShader)
+            voxelShader.createFragmentShader(voxelFragmentShader)
             voxelShader.link()
             voxelShader
         }
 
+        log.trace { "Loading Translucent Voxel Shader" }
+        val transparentVoxelShader = IOUtil.loadResource("/shaders/default_transparent.fragment.glsl")
+        val translucentVoxelShader = mainThreadRunner.runOnMainThread {
+            val shader = ShaderProgram()
+            shader.createVertexShader(voxelVertexShader)
+            shader.createFragmentShader(transparentVoxelShader)
+            shader.link()
+            shader
+        }
+
+        log.trace { "Loading Atlas Texture and Data" }
         val assetDataTexture = AtlasDataTexture(128, 128)
         val atlasLoader = TextureAtlas.loadToAtlas(
             textures.map { "/images/${it.resourceName}.png" },
@@ -127,8 +151,31 @@ object FrontendProxy : CommonProxy() {
             crosshairShader
         }
 
-        val crosshairMeshLoader = mainThreadRunner.runOnMainThread {
-            log.trace { "Creating Crosshair Mesh" }
+        log.trace { "Loading Screen Shader GLSL" }
+        val screenVertexGLSL = IOUtil.loadResource("/shaders/screen.vertex.glsl")
+        val screenFragmentGLSL = IOUtil.loadResource("/shaders/screen.fragment.glsl")
+        val screenShaderLoader = mainThreadRunner.runOnMainThread {
+            log.trace { "Creating Screen Shader" }
+            val screenShader = ShaderProgram()
+            screenShader.createVertexShader(screenVertexGLSL)
+            screenShader.createFragmentShader(screenFragmentGLSL)
+            screenShader.link()
+            screenShader
+        }
+
+        log.trace { "Loading Passthrough GLSL" }
+        val passthroughFragmentGLSL = IOUtil.loadResource("/shaders/passthrough.fragment.glsl")
+        val passthroughShaderLoader = mainThreadRunner.runOnMainThread {
+            log.trace { "Creating Passthrough Shader" }
+            val screenShader = ShaderProgram()
+            screenShader.createVertexShader(screenVertexGLSL)
+            screenShader.createFragmentShader(passthroughFragmentGLSL)
+            screenShader.link()
+            screenShader
+        }
+
+        val screenMeshLoader = mainThreadRunner.runOnMainThread {
+            log.trace { "Creating Screen Mesh" }
             val crosshairMesh = Mesh(GLDrawingMode.TRIANGLES, true)
             crosshairMesh.setVertices(floatArrayOf(
                 -1f, 1f, 0f, 1f,
@@ -145,15 +192,20 @@ object FrontendProxy : CommonProxy() {
         }
 
         crosshairShader = crosshairShaderLoader.get()
-        crosshairMesh = crosshairMeshLoader.get()
+        compositionShader = screenShaderLoader.get()
+        passthroughShader = passthroughShaderLoader.get()
+        screenMesh = screenMeshLoader.get()
         val crosshairMeshVerifier = mainThreadRunner.runOnMainThread {
-            log.trace { "Verifying Crosshair Shader" }
-            crosshairMesh.bound {
+            log.trace { "Verifying Screen Mesh Shaders" }
+            screenMesh.bound {
                 crosshairShader.validate()
+                compositionShader.validate()
+                passthroughShader.validate()
             }
         }
 
         voxelShader = shaderLoader.get()
+        this.translucentVoxelShader = translucentVoxelShader.get()
         textureAtlas = atlasLoader.get()
         crosshairTexture = crosshairTextureLoader.get()
         assetData = assetDataLoader.get()
@@ -164,11 +216,20 @@ object FrontendProxy : CommonProxy() {
         if (this::voxelShader.isInitialized) {
             voxelShader.cleanup()
         }
+        if (this::translucentVoxelShader.isInitialized) {
+            translucentVoxelShader.cleanup()
+        }
+        if (this::compositionShader.isInitialized) {
+            compositionShader.cleanup()
+        }
+        if (this::passthroughShader.isInitialized) {
+            passthroughShader.cleanup()
+        }
         textureAtlas.cleanup()
         assetData.cleanup()
 
-        if (this::crosshairMesh.isInitialized) {
-            crosshairMesh.cleanup()
+        if (this::screenMesh.isInitialized) {
+            screenMesh.cleanup()
         }
         if (this::crosshairShader.isInitialized) {
             crosshairShader.cleanup()

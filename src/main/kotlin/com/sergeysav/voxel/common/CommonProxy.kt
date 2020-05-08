@@ -9,6 +9,7 @@ import com.sergeysav.voxel.common.block.impl.Leaves
 import com.sergeysav.voxel.common.block.impl.Log
 import com.sergeysav.voxel.common.block.impl.Stone
 import com.sergeysav.voxel.common.block.impl.Test
+import com.sergeysav.voxel.common.block.impl.Water
 import mu.KotlinLogging
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicLong
@@ -27,6 +28,7 @@ abstract class CommonProxy : SidedProxy {
         blocks.add(Test)
         blocks.add(Log)
         blocks.add(Leaves)
+        blocks.add(Water)
     }
 
     override fun initialize(mainThreadRunner: MainThreadRunner) {

@@ -1,5 +1,6 @@
 package com.sergeysav.voxel.client.chunk.meshing
 
+import com.sergeysav.voxel.client.block.ClientBlockMesher
 import com.sergeysav.voxel.client.chunk.ClientChunk
 import com.sergeysav.voxel.client.gl.GLDataUsage
 import com.sergeysav.voxel.client.gl.UVec3VertexAttribute
@@ -17,7 +18,7 @@ import java.nio.IntBuffer
 /**
  * @author sergeys
  *
- * @constructor Creates a new AdjacentChunkMesher
+ * @constructor Creates a new SimpleChunkMesher
  */
 class SimpleChunkMesher(
     private val shortCircuitCallback: (SimpleChunkMesher)->Unit
@@ -63,7 +64,7 @@ class SimpleChunkMesher(
                     globalBlockPos.y += chunk.position.y * Chunk.SIZE
                     globalBlockPos.z += chunk.position.z * Chunk.SIZE
                     Voxel.getBlockMesher<ChunkMesherCallback, Block<BlockState>, BlockState>(block)
-                        ?.addToMesh(this, globalBlockPos, block, blockState)
+                        ?.addToMesh(this, this, globalBlockPos, block, blockState)
                 }
             }
         }
@@ -85,10 +86,10 @@ class SimpleChunkMesher(
     override fun applyMesh() {
         ready = false
 
-        var mesh = chunk.mesh
+        var mesh = chunk.opaqueMesh
         if (mesh == null) {
             mesh = ClientChunk.meshPool.get()
-            chunk.mesh = mesh
+            chunk.opaqueMesh = mesh
         }
         if (!mesh.fullyInitialized) {
             mesh.setVertices(vertexData, GLDataUsage.STATIC, clientChunkPackedVertexDataAttribute)
@@ -152,7 +153,7 @@ class SimpleChunkMesher(
                            l3: Double, u3: Double, r3: Double, g3: Double, b3: Double,
                            l4: Double, u4: Double, r4: Double, g4: Double, b4: Double,
                            texture: TextureResource, facing: Direction, rotation: BlockTextureRotation,
-                           reflection: BlockTextureReflection, border: Boolean) {
+                           reflection: BlockTextureReflection, border: Boolean, doubleRender: Boolean) {
         // Adjacency optimization
         if (border) {
             blockPos2.x = blockPos.x + facing.relX + chunk.position.x * 16
@@ -161,8 +162,8 @@ class SimpleChunkMesher(
             val block = world.getBlock(blockPos2)
             if (block != null) {
                 @Suppress("UNCHECKED_CAST")
-                val mesher = Voxel.getBlockMesher<ChunkMesherCallback, Block<BlockState>, BlockState>(block as Block<BlockState>)
-                if (mesher?.opaque == true) return
+                val mesher = Voxel.getBlockMesher<ChunkMesherCallback, Block<BlockState>, BlockState>(block as Block<BlockState>) as ClientBlockMesher<Block<BlockState>, BlockState>?
+                if (mesher?.shouldOpaqueAdjacentHideFace(facing.opposite) == true) return
             }
         }
 

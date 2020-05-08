@@ -9,6 +9,6 @@ import com.sergeysav.voxel.common.world.World
  */
 interface WorldLoadingManager<C : Chunk, W : World<C>> {
 
-    fun updateWorldLoading(world: W, chunks: Iterable<C>, loadCallback: (ChunkPosition)->Unit, unloadCallback: (ChunkPosition)->Unit)
+    fun updateWorldLoading(world: W, chunks: List<C>, loadCallback: (ChunkPosition)->Unit, unloadCallback: (ChunkPosition)->Unit)
     fun cleanupWorldLoading()
 }

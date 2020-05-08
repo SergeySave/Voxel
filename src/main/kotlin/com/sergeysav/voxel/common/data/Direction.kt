@@ -14,6 +14,9 @@ sealed class Direction(val textureAxis: Int, val relX: Int, val relY: Int, val r
         return (this::class.simpleName ?: "")
     }
 
+    override fun equals(other: Any?): Boolean = this === other
+    override fun hashCode(): Int = ordinal // I know it's not an impressive number, but its all this class really has
+
     object North : Direction(4, 1, 0, 0) {
         override val opposite = South
         override val up = Up

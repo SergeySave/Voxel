@@ -7,12 +7,12 @@ import com.sergeysav.voxel.common.block.state.BlockState
 /**
  * @author sergeys
  *
- * @constructor Creates a new SolidBlockMesher
+ * @constructor Creates a new TestBlockMesher
  */
-open class LeavesBlockMesher<B : Block<out S>, S : BlockState>(
+open class TestBlockMesher<B : Block<out S>, S : BlockState>(
     texture: TextureResource
-) : RandomizedSolidBlockMesher<B, S>(texture) {
+) : SolidBlockMesher<B, S>(texture) {
 
     override val opaque: Boolean = false
-    override val translucent: Boolean = false
+    override val translucent: Boolean = true
 }

@@ -7,7 +7,5 @@ import com.sergeysav.voxel.common.block.state.BlockState
  */
 interface BlockMesher<C, B : Block<out S>, S : BlockState> {
 
-    val opaque: Boolean
-
-    fun addToMesh(chunkMesher: C, pos: BlockPosition, block: B, state: S)
+    fun addToMesh(opaqueMesher: C, translucentMesher: C, pos: BlockPosition, block: B, state: S)
 }

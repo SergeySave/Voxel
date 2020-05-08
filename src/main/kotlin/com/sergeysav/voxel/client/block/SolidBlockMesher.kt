@@ -18,6 +18,7 @@ open class SolidBlockMesher<B : Block<out S>, S : BlockState>(
 ) : CubeBlockMesher<B, S>() {
 
     override val opaque: Boolean = true
+    override val translucent: Boolean = false
 
     override fun getAxisTexture(pos: BlockPosition, block: B, state: S, direction: Direction): TextureResource = texture
 

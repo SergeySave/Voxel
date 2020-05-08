@@ -28,7 +28,7 @@ class DistanceWorldLoadingManager : WorldLoadingManager<Chunk, World<Chunk>> {
 
     override fun updateWorldLoading(
         world: World<Chunk>,
-        chunks: Iterable<Chunk>,
+        chunks: List<Chunk>,
         loadCallback: (ChunkPosition) -> Unit,
         unloadCallback: (ChunkPosition) -> Unit
     ) {

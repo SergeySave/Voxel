@@ -18,41 +18,43 @@ class SimpleUnionWorldLoadingManager(vararg strategies: WorldLoadingStrategy) : 
 
     init {
         log.trace { "Initializing World Loading Manager" }
-        for (s in strategies) {
-            this.strategies.add(s)
+        for (i in strategies.indices) {
+            this.strategies.add(strategies[i])
         }
     }
 
     override fun updateWorldLoading(
         world: World<Chunk>,
-        chunks: Iterable<Chunk>,
+        chunks: List<Chunk>,
         loadCallback: (ChunkPosition) -> Unit,
         unloadCallback: (ChunkPosition) -> Unit
     ) {
-        for (strategy in strategies) {
-            strategy.update()
+        for (i in strategies.indices) {
+            strategies[i].update()
         }
 
         toUnload.clear()
-        ChunkLoop@for (chunk in chunks) {
-            for (strategy in strategies) {
-                if (strategy.shouldStayLoaded(chunk.position)) continue@ChunkLoop
+        ChunkLoop@for (i in chunks.indices) {
+            val chunk = chunks[i]
+            for (j in strategies.indices) {
+                if (strategies[j].shouldStayLoaded(chunk.position)) continue@ChunkLoop
             }
             toUnload.add(chunk.position)
         }
-        for (position in toUnload) {
+        for (i in toUnload.indices) {
+            val position = toUnload[i]
             unloadCallback(position)
         }
         toUnload.clear()
 
-        for (strategy in strategies) {
-            strategy.requestLoads(world, chunks, loadCallback)
+        for (i in strategies.indices) {
+            strategies[i].requestLoads(world, chunks, loadCallback)
         }
     }
 
     override fun cleanupWorldLoading() {
-        for (strategy in strategies) {
-            strategy.cleanup()
+        for (i in strategies.indices) {
+            strategies[i].cleanup()
         }
     }
 }

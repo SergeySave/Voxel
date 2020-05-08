@@ -22,6 +22,7 @@ open class RandomizedSolidBlockMesher<B : Block<out S>, S : BlockState>(
 ) : CubeBlockMesher<B, S>() {
 
     override val opaque: Boolean = true
+    override val translucent: Boolean = false
 
     private fun getSeed(pos: BlockPosition, block: B, state: S, direction: Direction, salt: Long) = (((pos.hashCode() * 31L + block.hashCode()) * 31L + state.hashCode()) * 31L + direction.hashCode()) * 31L + salt
 
