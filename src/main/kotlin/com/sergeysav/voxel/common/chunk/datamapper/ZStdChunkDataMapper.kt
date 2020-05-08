@@ -1,6 +1,7 @@
 package com.sergeysav.voxel.common.chunk.datamapper
 
 import com.sergeysav.voxel.common.chunk.Chunk
+import mu.KotlinLogging
 import org.lwjgl.util.zstd.Zstd
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -40,6 +41,7 @@ class ZStdChunkDataMapper(
         workingBuffer.limit(workingBuffer.capacity())
         val amountDecompressed = Zstd.ZSTD_decompressDCtx(decompContext, workingBuffer, byteBuffer)
         if (Zstd.ZSTD_isError(amountDecompressed)) {
+            log.error { "Decompression Error. Incoming size: ${byteBuffer.limit()}" }
             error(Zstd.ZSTD_getErrorName(amountDecompressed))
         }
         workingBuffer.limit(amountDecompressed.toInt())
@@ -56,5 +58,9 @@ class ZStdChunkDataMapper(
         BT_OPT(Zstd.ZSTD_btopt),
         BT_ULTRA(Zstd.ZSTD_btultra),
         BT_ULTRA2(Zstd.ZSTD_btultra2)
+    }
+
+    companion object {
+        private val log = KotlinLogging.logger {  }
     }
 }

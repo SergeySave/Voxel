@@ -4,6 +4,7 @@ import com.sergeysav.voxel.client.nuklear.Gui
 import com.sergeysav.voxel.client.nuklear.GuiWindow
 import org.lwjgl.nuklear.Nuklear
 import java.lang.StringBuilder
+import java.util.Formatter
 import kotlin.math.roundToInt
 
 /**
@@ -17,13 +18,13 @@ class DebugUI : GuiWindow("Debug") {
     private val runningAverage = DoubleArray(15) { 0.0 }
     private val stringBuilder = StringBuilder(128)
 
-    fun layout(gui: Gui, fps: Double, meshingQueue: Int, loadingQueue: Int, savingQueue: Int) {
+    fun layout(gui: Gui, fps: Double, meshingQueue: Int, loadingQueue: Int, savingQueue: Int, x: Float, y: Float, z: Float) {
         runningAverage[runningIndex++] = fps
         runningIndex %= runningAverage.size
 
         nkEditing(gui) {
             window.background.hidden {
-                window(0f, 0f, 400f, 20*6f,
+                window(0f, 0f, 400f, 20*7f,
                     Nuklear.NK_WINDOW_NO_INPUT or
                             Nuklear.NK_WINDOW_ROM or
                             Nuklear.NK_WINDOW_NO_SCROLLBAR) {
@@ -63,6 +64,16 @@ class DebugUI : GuiWindow("Debug") {
                         stringBuilder.append((((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024.0 / 1024.0) * 100).roundToInt() / 100.0)
                         stringBuilder.append('/')
                         stringBuilder.append(((Runtime.getRuntime().totalMemory() / 1024.0 / 1024.0) * 100).roundToInt() / 100.0)
+                        label(stringBuilder)
+                    }
+                    dynamicRow(1, 15f) {
+                        stringBuilder.clear()
+                        stringBuilder.append("X: ")
+                        stringBuilder.append((x * 10).roundToInt() / 10.0)
+                        stringBuilder.append(", Y: ")
+                        stringBuilder.append((y * 10).roundToInt() / 10.0)
+                        stringBuilder.append(", Z: ")
+                        stringBuilder.append((z * 10).roundToInt() / 10.0)
                         label(stringBuilder)
                     }
                 }

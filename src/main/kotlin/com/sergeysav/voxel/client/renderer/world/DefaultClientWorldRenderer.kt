@@ -1,4 +1,4 @@
-package com.sergeysav.voxel.client.renderer
+package com.sergeysav.voxel.client.renderer.world
 
 import com.sergeysav.voxel.client.FrontendProxy
 import com.sergeysav.voxel.client.camera.Camera
@@ -6,6 +6,7 @@ import com.sergeysav.voxel.client.camera.CameraAABBChecker
 import com.sergeysav.voxel.client.chunk.ClientChunk
 import com.sergeysav.voxel.client.gl.bound
 import com.sergeysav.voxel.client.gl.setUniform
+import com.sergeysav.voxel.client.renderer.world.ClientWorldRenderer
 import com.sergeysav.voxel.common.bound
 import com.sergeysav.voxel.common.chunk.Chunk
 import org.joml.Matrix4f
@@ -40,7 +41,7 @@ class DefaultClientWorldRenderer : ClientWorldRenderer {
         visibleChunks.clear()
         for (i in chunks.indices) {
             val chunk = chunks[i]
-            if (chunk.loaded && (chunk.opaqueMesh != null || chunk.translucentMesh != null)) {
+            if (chunk.loaded && chunk.meshed && (chunk.opaqueMesh != null || chunk.translucentMesh != null)) {
                 val x = chunk.position.x * Chunk.SIZE.toFloat()
                 val y = chunk.position.y * Chunk.SIZE.toFloat()
                 val z = chunk.position.z * Chunk.SIZE.toFloat()

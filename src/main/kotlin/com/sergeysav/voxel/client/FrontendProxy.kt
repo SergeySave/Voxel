@@ -17,6 +17,7 @@ import com.sergeysav.voxel.client.gl.ShaderProgram
 import com.sergeysav.voxel.client.gl.Texture2D
 import com.sergeysav.voxel.client.gl.TextureInterpolationMode
 import com.sergeysav.voxel.client.gl.Vec2VertexAttribute
+import com.sergeysav.voxel.client.gl.Vec3VertexAttribute
 import com.sergeysav.voxel.client.gl.createTexture
 import com.sergeysav.voxel.client.resource.texture.AtlasDataTexture
 import com.sergeysav.voxel.client.resource.texture.TextureAtlas
@@ -56,6 +57,8 @@ object FrontendProxy : CommonProxy() {
         private set
     lateinit var passthroughShader: ShaderProgram
         private set
+    lateinit var cubeShader: ShaderProgram
+        private set
     var textureAtlas: Texture2D = Texture2D(0)
         private set
     var assetData: Texture2D = Texture2D(0)
@@ -63,6 +66,8 @@ object FrontendProxy : CommonProxy() {
     var crosshairTexture: Texture2D = Texture2D(0)
         private set
     lateinit var screenMesh: Mesh
+        private set
+    lateinit var cubeMesh: Mesh
         private set
 
     fun <B : Block<out S>, S : BlockState> registerBlockMesher(block: B, mesher: ClientBlockMesher<B, S>) {
@@ -191,6 +196,48 @@ object FrontendProxy : CommonProxy() {
             crosshairMesh
         }
 
+        log.trace { "Loading Cube GLSL" }
+        val cubeVertexGLSL = IOUtil.loadResource("/shaders/cube.vertex.glsl")
+        val cubeFragmentGLSL = IOUtil.loadResource("/shaders/cube.fragment.glsl")
+        val cubeShaderLoader = mainThreadRunner.runOnMainThread {
+            log.trace { "Creating Cube Shader" }
+            val screenShader = ShaderProgram()
+            screenShader.createVertexShader(cubeVertexGLSL)
+            screenShader.createFragmentShader(cubeFragmentGLSL)
+            screenShader.link()
+            screenShader
+        }
+
+        val coloredCubeLoader = mainThreadRunner.runOnMainThread {
+            log.trace { "Creating Cube Mesh" }
+            val crosshairMesh = Mesh(GLDrawingMode.TRIANGLES, true)
+            crosshairMesh.setVertices(floatArrayOf(
+                -1f, -1f, -1f,  // 0
+                -1f, -1f, 1f,   // 1
+                -1f, 1f, -1f,   // 2
+                -1f, 1f, 1f,    // 3
+                1f, -1f, -1f,   // 4
+                1f, -1f, 1f,    // 5
+                1f, 1f, -1f,    // 6
+                1f, 1f, 1f      // 7
+            ), GLDataUsage.STATIC, Vec3VertexAttribute("aPos"))
+            crosshairMesh.setIndexData(intArrayOf(
+                0, 1, 3,
+                3, 2, 0,
+                4, 7, 5,
+                7, 4, 6,
+                0, 6, 4,
+                6, 0, 2,
+                1, 5, 7,
+                7, 3, 1,
+                0, 5, 1,
+                5, 0, 4,
+                2, 3, 7,
+                7, 6, 2
+            ), GLDataUsage.STATIC)
+            crosshairMesh
+        }
+
         crosshairShader = crosshairShaderLoader.get()
         compositionShader = screenShaderLoader.get()
         passthroughShader = passthroughShaderLoader.get()
@@ -205,6 +252,8 @@ object FrontendProxy : CommonProxy() {
         }
 
         voxelShader = shaderLoader.get()
+        cubeShader = cubeShaderLoader.get()
+        cubeMesh = coloredCubeLoader.get()
         this.translucentVoxelShader = translucentVoxelShader.get()
         textureAtlas = atlasLoader.get()
         crosshairTexture = crosshairTextureLoader.get()
@@ -225,16 +274,23 @@ object FrontendProxy : CommonProxy() {
         if (this::passthroughShader.isInitialized) {
             passthroughShader.cleanup()
         }
+        if (this::crosshairShader.isInitialized) {
+            crosshairShader.cleanup()
+        }
+        if (this::cubeShader.isInitialized) {
+            cubeShader.cleanup()
+        }
+
         textureAtlas.cleanup()
         assetData.cleanup()
+        crosshairTexture.cleanup()
 
         if (this::screenMesh.isInitialized) {
             screenMesh.cleanup()
         }
-        if (this::crosshairShader.isInitialized) {
-            crosshairShader.cleanup()
+        if (this::cubeMesh.isInitialized) {
+            cubeMesh.cleanup()
         }
-        crosshairTexture.cleanup()
     }
 
     override fun <B : Block<out S>, S : BlockState> getProxyBlockMesher(block: B): ClientBlockMesher<B, S> {

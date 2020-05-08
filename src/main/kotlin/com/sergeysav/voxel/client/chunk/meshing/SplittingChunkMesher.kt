@@ -29,10 +29,8 @@ class SplittingChunkMesher(
     private val blockPos = MutableBlockPosition()
     private val globalBlockPos = MutableBlockPosition()
     private val blockPos2 = MutableBlockPosition()
-    private val clientChunkPackedVertexDataAttribute = UVec3VertexAttribute("packedVertexData")
     private val opaqueCallback = MeshingCallback()
     private val translucentCallback = MeshingCallback()
-//    private var transparent: Boolean = false
 
     override var free: Boolean = true
     override var ready: Boolean = false
@@ -109,23 +107,13 @@ class SplittingChunkMesher(
         translucentMesh.setIndexData(translucentCallback.indexData, GLDataUsage.STATIC, translucentCallback.indices)
 
         chunk.isMeshEmpty = opaqueCallback.indices == 0 && translucentCallback.indices == 0
+        chunk.meshed = true
 
         free = true
     }
 
-    private fun putVertex(data: IntBuffer,
-                  subX: Int, subY: Int, subZ: Int,
-                  imageIndex: Int,
-                  facingAxis: Int,
-                  rotation: Int,
-                  reflection: Int,
-                  lightingR: Int, lightingG: Int, lightingB: Int) {
-        data.put( ((subX and 0xFFFF) shl 16) or (subY and 0xFFFF) )
-        data.put( ((subZ and 0xFFFF) shl 16) or ((imageIndex and 0xFFFF0) ushr 4) )
-        data.put( ((imageIndex and 0x0000F) shl 28) or
-                ((facingAxis and 0b111) shl 25) or
-                ((rotation and 0b11) shl 23) or
-                ((reflection and 0b11) shl 21) or ((lightingR and 0x7F) shl 14) or ((lightingG and 0x7F) shl 7) or (lightingB and 0x7F))
+    companion object {
+        private val clientChunkPackedVertexDataAttribute = UVec3VertexAttribute("packedVertexData")
     }
 
     inner class MeshingCallback : ChunkMesherCallback {
@@ -240,6 +228,21 @@ class SplittingChunkMesher(
             addTriangle(v3, v2, v4)
 
             return true
+        }
+
+        private fun putVertex(data: IntBuffer,
+                              subX: Int, subY: Int, subZ: Int,
+                              imageIndex: Int,
+                              facingAxis: Int,
+                              rotation: Int,
+                              reflection: Int,
+                              lightingR: Int, lightingG: Int, lightingB: Int) {
+            data.put( ((subX and 0xFFFF) shl 16) or (subY and 0xFFFF) )
+            data.put( ((subZ and 0xFFFF) shl 16) or ((imageIndex and 0xFFFF0) ushr 4) )
+            data.put( ((imageIndex and 0x0000F) shl 28) or
+                    ((facingAxis and 0b111) shl 25) or
+                    ((rotation and 0b11) shl 23) or
+                    ((reflection and 0b11) shl 21) or ((lightingR and 0x7F) shl 14) or ((lightingG and 0x7F) shl 7) or (lightingB and 0x7F))
         }
     }
 }

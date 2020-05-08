@@ -2,7 +2,6 @@ package com.sergeysav.voxel.client.world.meshing
 
 import com.sergeysav.voxel.client.chunk.meshing.ChunkMesher
 import com.sergeysav.voxel.client.chunk.ClientChunk
-import com.sergeysav.voxel.client.chunk.meshing.SimpleChunkMesher
 import com.sergeysav.voxel.client.chunk.meshing.SplittingChunkMesher
 import com.sergeysav.voxel.client.world.ClientWorld
 import com.sergeysav.voxel.client.world.meshing.selection.MeshSelectionStrategy
@@ -19,20 +18,21 @@ class SimpleThreadedMeshingManager(
     private val meshSelectionStrategy: MeshSelectionStrategy,
     parallelism: Int = 1,
     meshesPerFrame: Int = 32,
-    dirtyQueueSize: Int = meshesPerFrame
+    internalQueueSize: Int = meshesPerFrame,
+    dirtyQueueSize: Int = 1
 ) : WorldMeshingManager<ClientWorld> {
 
     private val log = KotlinLogging.logger {  }
     private var world: ClientWorld? = null
     private var alive = true
-    private val dirtyQueue: BlockingQueue<ClientChunk> = ArrayBlockingQueue(meshesPerFrame)
+    private val dirtyQueue: BlockingQueue<ClientChunk> = ArrayBlockingQueue(dirtyQueueSize)
     private val mesherQueue: BlockingQueue<ChunkMesher> = ArrayBlockingQueue(meshesPerFrame)
     private val meshers: Array<ChunkMesher> = Array(meshesPerFrame) { SplittingChunkMesher(mesherQueue::put) }
-    private val selectionThread = MeshingSelectionThread(dirtyQueueSize, dirtyQueue, meshSelectionStrategy, "Mesher Selection Thread")
+    private val selectionThread = MeshingSelectionThread(internalQueueSize, dirtyQueue, meshSelectionStrategy, "Mesher Selection Thread")
     private val threads = Array(parallelism) { MeshingTaskThread(mesherQueue, dirtyQueue, "Mesher Thread $it") }
 
     init {
-        log.trace { "Initializing World Meshing Manager with $parallelism Threads, $meshesPerFrame Meshes per Thread, and $dirtyQueueSize Queue" }
+        log.trace { "Initializing World Meshing Manager with $parallelism Threads, $meshesPerFrame Meshes per Thread, and $internalQueueSize Queue" }
         for (m in meshers) {
             mesherQueue.put(m)
         }

@@ -7,8 +7,8 @@ import com.sergeysav.voxel.client.camera.CameraController
 import com.sergeysav.voxel.client.chunk.ClientChunk
 import com.sergeysav.voxel.client.gl.bound
 import com.sergeysav.voxel.client.player.PlayerInput
-import com.sergeysav.voxel.client.renderer.DefaultClientWorldRenderer
-import com.sergeysav.voxel.client.renderer.OITClientWorldRenderer
+import com.sergeysav.voxel.client.renderer.blockselection.BoundingBoxFullSelectionRenderer
+import com.sergeysav.voxel.client.renderer.world.DefaultClientWorldRenderer
 import com.sergeysav.voxel.client.screen.Screen
 import com.sergeysav.voxel.client.settings.GraphicsSettings
 import com.sergeysav.voxel.client.world.ClientWorld
@@ -44,6 +44,7 @@ class GameScreen(graphicsSettings: GraphicsSettings) : Screen {
         PriorityMeshSelectionStrategy(blockPos),
         parallelism = graphicsSettings.meshingSettings.parallelism,
         meshesPerFrame = graphicsSettings.meshingSettings.meshesPerFrame,
+        internalQueueSize = graphicsSettings.meshingSettings.internalQueueSize,
         dirtyQueueSize = graphicsSettings.meshingSettings.dirtyQueueSize
     )
     private val loadingChunkQueuingStrategy = ClosestChunkQueuingStrategy<ClientChunk>(blockPos)
@@ -63,7 +64,8 @@ class GameScreen(graphicsSettings: GraphicsSettings) : Screen {
         SimpleUnionWorldLoadingManager(distanceWorldLoadingStrategy),
         meshingManager,
         chunkManager,
-        DefaultClientWorldRenderer()
+        DefaultClientWorldRenderer(),
+        BoundingBoxFullSelectionRenderer(0f, 0f, 0f, 1f, 0.0015f)
     )
     private var callback: ((Double, Double)->Boolean)? = null
     private var firstMouse = true
@@ -83,8 +85,8 @@ class GameScreen(graphicsSettings: GraphicsSettings) : Screen {
     private val debugUI = DebugUI()
 
     init {
-        cameraController.setPos(10f, 7.5f, -5f)
-        cameraController.lookAt(-5f, -5f, 15f)
+        cameraController.setPos(10f, 3.5f, -5f)
+        cameraController.lookAt(-1f, -5f, 1f)
     }
 
     override fun register(application: Frontend) {
@@ -108,8 +110,10 @@ class GameScreen(graphicsSettings: GraphicsSettings) : Screen {
                     playerInput.mouseButton1JustDown = true
                     playerInput.mouseButton1Down = true
                 } else if (action == GLFW.GLFW_RELEASE) {
+                    if (playerInput.mouseButton1Down) {
+                        playerInput.mouseButton1JustUp = true
+                    }
                     playerInput.mouseButton1Down = false
-                    playerInput.mouseButton1JustUp = true
                 }
             }
             if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
@@ -117,8 +121,10 @@ class GameScreen(graphicsSettings: GraphicsSettings) : Screen {
                     playerInput.mouseButton2JustDown = true
                     playerInput.mouseButton2Down = true
                 } else if (action == GLFW.GLFW_RELEASE) {
+                    if (playerInput.mouseButton2Down) {
+                        playerInput.mouseButton2JustUp = true
+                    }
                     playerInput.mouseButton2Down = false
-                    playerInput.mouseButton2JustUp = true
                 }
             }
             false
@@ -126,7 +132,16 @@ class GameScreen(graphicsSettings: GraphicsSettings) : Screen {
     }
 
     override fun render(delta: Double) {
-        debugUI.layout(application.gui, 1/delta, meshingManager.getQueueSize(), loadingChunkQueuingStrategy.currentSize(), savingChunkQueuingStrategy.currentSize())
+        debugUI.layout(
+            application.gui,
+            1/delta,
+            meshingManager.getQueueSize(),
+            loadingChunkQueuingStrategy.currentSize(),
+            savingChunkQueuingStrategy.currentSize(),
+            cameraController.camera.position.x(),
+            cameraController.camera.position.y(),
+            cameraController.camera.position.z()
+        )
 
         val speed = 0.2f
         val forwardBackward = speed * (if (application.isKeyPressed(GLFW.GLFW_KEY_W)) 1 else 0 + if (application.isKeyPressed(

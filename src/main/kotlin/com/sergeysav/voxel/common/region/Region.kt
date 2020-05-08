@@ -13,6 +13,8 @@ import com.sergeysav.voxel.common.chunk.datamapper.NaiveChunkDataMapper
 import com.sergeysav.voxel.common.chunk.datamapper.ZStdChunkDataMapper
 import com.sergeysav.voxel.common.pool.ConcurrentObjectPool
 import com.sergeysav.voxel.common.pool.with
+import com.sergeysav.voxel.common.world.World
+import mu.KotlinLogging
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
@@ -27,7 +29,8 @@ import kotlin.math.max
  */
 class Region(
     val position: RegionPosition,
-    private val fileChannel: FileChannel
+    private val fileChannel: FileChannel,
+    private val world: World<Chunk>
 ) {
     var emptyFor = 0
 
@@ -185,9 +188,11 @@ class Region(
             chunkUpdates.clear()
             synchronized(metaUpdates) {
                 for (i in metaUpdates.size - 1 downTo 0) {
-                    if (metaUpdates[i].chunkPosition in loadedChunks) {
-                        metaUpdates.removeAt(i)
-                    } else if (metaUpdates[i].age++ == 1000 && metaUpdates[i].chunkPosition !in chunkUpdates) {
+                    metaUpdates[i].age++
+                    if (metaUpdates[i].age > 1000 && metaUpdates[i].chunkPosition in loadedChunks) {
+                        world.setBlock(metaUpdates[i].chunkPosition, metaUpdates[i].localPosition, metaUpdates[i].block, metaUpdates[i].state)
+                        metaUpdatePool.put(metaUpdates.removeAt(i))
+                    } else if (metaUpdates[i].age > 2000 && metaUpdates[i].chunkPosition !in chunkUpdates) {
                         val cp = chunkPosPool.get()
                         cp.set(metaUpdates[i].chunkPosition)
                         chunkUpdates.add(cp)
@@ -315,6 +320,7 @@ class Region(
     companion object {
         const val SIZE = 16
         const val CHUNKS = SIZE * SIZE * SIZE
+        private val log = KotlinLogging.logger {  }
 
         private val mapperPool = ConcurrentObjectPool({
             ZStdChunkDataMapper(NaiveChunkDataMapper(), ZStdChunkDataMapper.CompressionLevel.BT_ULTRA2, 256)

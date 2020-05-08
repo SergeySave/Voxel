@@ -1,9 +1,11 @@
 package com.sergeysav.voxel.common.region
 
+import com.sergeysav.voxel.common.chunk.Chunk
 import com.sergeysav.voxel.common.chunk.ChunkPosition
 import com.sergeysav.voxel.common.pool.LocalObjectPool
 import com.sergeysav.voxel.common.pool.ObjectPool
 import com.sergeysav.voxel.common.pool.with
+import com.sergeysav.voxel.common.world.World
 import mu.KotlinLogging
 import java.nio.channels.FileChannel
 import java.util.concurrent.ArrayBlockingQueue
@@ -16,6 +18,7 @@ import java.util.concurrent.BlockingQueue
  */
 class RegionManagerThread(
     private val regionFileSource: (RegionPosition)->FileChannel,
+    private val world: ()->World<Chunk>,
     addRemoveQueueSize: Int,
     name: String
 ) : Thread() {
@@ -43,7 +46,7 @@ class RegionManagerThread(
                 val added = addQueue.poll()?.also { position ->
                     val region = regions.find { it.position == position }
                     if (region == null) {
-                        regions.add(Region(position, regionFileSource(position)))
+                        regions.add(Region(position, regionFileSource(position), world()))
                     } else {
                         regionPosPool.put(position)
                     }
@@ -75,7 +78,10 @@ class RegionManagerThread(
     fun requestRegionLoad(chunkPosition: ChunkPosition) {
         val pos = regionPosPool.get()
         pos.setToRegionOf(chunkPosition)
-        addQueue.put(pos)
+        // Only add it to the queue if we don't know that it is loaded
+        if (getRegion(pos) == null) {
+            addQueue.put(pos)
+        }
     }
 
     fun getRegion(regionPosition: RegionPosition): Region? {

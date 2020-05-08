@@ -1,6 +1,8 @@
 package com.sergeysav.voxel.common.world.chunks
 
 import com.sergeysav.voxel.common.chunk.Chunk
+import com.sergeysav.voxel.common.chunk.ChunkPosition
+import com.sergeysav.voxel.common.chunk.ImmutableChunkPosition
 import com.sergeysav.voxel.common.region.RegionManagerThread
 import com.sergeysav.voxel.common.world.generator.ChunkGenerator
 import mu.KotlinLogging
@@ -29,6 +31,14 @@ class ChunkSavingThread<C : Chunk>(
 
     override fun run() {
         alive = true
+
+        // RACE CONDITION
+        // It is possible that the same chunk is added in very quick succeession to the chunk saving queue
+        // Between additions a saving thread takes the chunk and begins processing it.
+        // The first thread finishes, and releases the chunk - The chunk now has invalid data as it has already been
+        // released
+        // Thus a chunk MUST not be released until ALL threads have finished saving it
+        // Note: a simple check does not work
 
         while (alive) {
             val c = processingQueue.take()

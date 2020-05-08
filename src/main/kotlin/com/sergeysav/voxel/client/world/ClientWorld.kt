@@ -1,24 +1,18 @@
 package com.sergeysav.voxel.client.world
 
-import com.sergeysav.voxel.client.FrontendProxy
 import com.sergeysav.voxel.client.camera.Camera
-import com.sergeysav.voxel.client.camera.CameraAABBChecker
 import com.sergeysav.voxel.client.chunk.ClientChunk
-import com.sergeysav.voxel.client.gl.bound
-import com.sergeysav.voxel.client.gl.setUniform
 import com.sergeysav.voxel.client.player.PlayerInput
-import com.sergeysav.voxel.client.renderer.ClientWorldRenderer
+import com.sergeysav.voxel.client.renderer.blockselection.BlockSelectionRenderer
+import com.sergeysav.voxel.client.renderer.world.ClientWorldRenderer
 import com.sergeysav.voxel.client.world.meshing.WorldMeshingManager
 import com.sergeysav.voxel.common.block.Block
 import com.sergeysav.voxel.common.block.BlockPosition
 import com.sergeysav.voxel.common.block.MutableBlockPosition
 import com.sergeysav.voxel.common.block.impl.Air
-import com.sergeysav.voxel.common.block.impl.Test
-import com.sergeysav.voxel.common.block.impl.Water
+import com.sergeysav.voxel.common.block.impl.Grass
 import com.sergeysav.voxel.common.block.state.BlockState
 import com.sergeysav.voxel.common.block.state.DefaultBlockState
-import com.sergeysav.voxel.common.bound
-import com.sergeysav.voxel.common.chunk.Chunk
 import com.sergeysav.voxel.common.chunk.ChunkPosition
 import com.sergeysav.voxel.common.chunk.MutableChunkPosition
 import com.sergeysav.voxel.common.data.Direction
@@ -32,8 +26,6 @@ import com.sergeysav.voxel.common.world.loading.WorldLoadingManager
 import com.sergeysav.voxel.common.world.raycast.Raycast
 import com.sergeysav.voxel.common.world.raycast.RaycastResult
 import mu.KotlinLogging
-import org.joml.Matrix4f
-import org.lwjgl.opengl.GL20
 
 /**
  * @author sergeys
@@ -44,7 +36,8 @@ class ClientWorld(
     private val worldLoadingManager: WorldLoadingManager<in ClientChunk, in ClientWorld>,
     private val worldMeshingManager: WorldMeshingManager<ClientWorld>,
     private val chunkManager: ChunkManager<ClientChunk>,
-    private val clientWorldRenderer: ClientWorldRenderer
+    private val clientWorldRenderer: ClientWorldRenderer,
+    private val selectionRenderer: BlockSelectionRenderer
 ) : World<ClientChunk> {
 
     private val log = KotlinLogging.logger {  }
@@ -54,6 +47,7 @@ class ClientWorld(
     private val chunks = HashMap<ChunkPosition, ClientChunk>()
     private val chunkList = ArrayList<ClientChunk>(4096)
     private val chunkPool: ObjectPool<ClientChunk> = SynchronizedObjectPool({ ClientChunk(MutableChunkPosition()) }, 256)
+    private val blockStore = Array<Block<*>>(1) { Air }
 
     init {
         log.info { "Initializing Client World" }
@@ -79,6 +73,7 @@ class ClientWorld(
         }
 
         clientWorldRenderer.initialize()
+        selectionRenderer.initialize()
     }
 
     private fun getNewChunk(chunkPosition: ChunkPosition): ClientChunk {
@@ -93,6 +88,7 @@ class ClientWorld(
     }
 
     private fun releaseChunk(chunk: ClientChunk) {
+        worldMeshingManager.notifyMeshUnneeded(chunk)
         chunk.reset()
         chunkPool.put(chunk)
     }
@@ -136,20 +132,29 @@ class ClientWorld(
             blockPosPool.with { blockPos ->
                 blockPos.set(blockPosition)
                 blockPos.setToChunkLocal()
-                chunks[chunkPos]?.let {
-                    it.setBlock(blockPos, block, blockState)
-                    worldMeshingManager.notifyMeshDirty(it)
-                    chunkManager.notifyChunkDirty(it)
-                }
-                chunkPosPool.with {
-                    for (d in Direction.all) {
-                        it.set(chunkPos)
-                        it.x += d.relX
-                        it.y += d.relY
-                        it.z += d.relZ
-                        chunks[it]?.let { c -> worldMeshingManager.notifyMeshDirty(c) }
-                    }
-                }
+                setBlock(chunkPos, blockPos, block, blockState)
+            }
+        }
+    }
+
+    override fun <T : BlockState> setBlock(
+        chunkPosition: ChunkPosition,
+        localPosition: BlockPosition,
+        block: Block<T>,
+        blockState: T
+    ) {
+        chunks[chunkPosition]?.let {
+            it.setBlock(localPosition, block, blockState)
+            worldMeshingManager.notifyMeshDirty(it)
+            chunkManager.notifyChunkDirty(it)
+        }
+        chunkPosPool.with {
+            for (d in Direction.all) {
+                it.set(chunkPosition)
+                it.x += d.relX
+                it.y += d.relY
+                it.z += d.relZ
+                chunks[it]?.let { c -> worldMeshingManager.notifyMeshDirty(c) }
             }
         }
     }
@@ -160,46 +165,8 @@ class ClientWorld(
             blockPosPool.with { blockPos ->
                 blockPos.set(blockPosition)
                 blockPos.setToChunkLocal()
-                var chunk = chunks[chunkPos]
-                if (chunk != null) {
-                    chunk.setBlock(blockPos, block, blockState)
-                    if (chunk.loaded) {
-                        worldMeshingManager.notifyMeshDirty(chunk)
-                        chunkManager.notifyChunkDirty(chunk)
 
-                        chunkPosPool.with {
-                            for (d in Direction.all) {
-                                it.set(chunkPos)
-                                it.x += d.relX
-                                it.y += d.relY
-                                it.z += d.relZ
-                                chunks[it]?.let { c -> worldMeshingManager.notifyMeshDirty(c) }
-                            }
-                        }
-                    }
-                } else {
-                    chunkManager.setUnloadedChunkBlock(chunkPos, blockPos, block, blockState)
-
-                    // Incase the chunk was loaded in the mean time: try to set its block again
-                    chunk = chunks[chunkPos]
-                    if (chunk != null) {
-                        chunk.setBlock(blockPos, block, blockState)
-                        if (chunk.loaded) {
-                            worldMeshingManager.notifyMeshDirty(chunk)
-                            chunkManager.notifyChunkDirty(chunk)
-
-                            chunkPosPool.with {
-                                for (d in Direction.all) {
-                                    it.set(chunkPos)
-                                    it.x += d.relX
-                                    it.y += d.relY
-                                    it.z += d.relZ
-                                    chunks[it]?.let { c -> worldMeshingManager.notifyMeshDirty(c) }
-                                }
-                            }
-                        }
-                    }
-                }
+                chunkManager.setUnloadedChunkBlock(chunkPos, blockPos, block, blockState)
             }
         }
     }
@@ -226,6 +193,17 @@ class ClientWorld(
         }
     }
 
+    override fun getBlockAndState(blockPosition: BlockPosition, blockStore: Array<Block<*>>): BlockState? {
+        return chunkPosPool.with { chunkPos ->
+            chunkPos.setToChunkOf(blockPosition)
+            blockPosPool.with { blockPos ->
+                blockPos.set(blockPosition)
+                blockPos.setToChunkLocal()
+                chunks[chunkPos]?.getBlockAndState(blockPos, blockStore)
+            }
+        }
+    }
+
     override fun update() {
         chunkManager.update()
         worldLoadingManager.updateWorldLoading(this, this.chunkList, this::doLoad, this::doUnload)
@@ -233,14 +211,6 @@ class ClientWorld(
     }
 
     fun draw(camera: Camera, playerInput: PlayerInput, width: Int, height: Int) {
-        if (playerInput.mouseButton1JustUp) {
-            raycastResultPool.with { res ->
-                Raycast.doRaycast(this, camera.position, camera.direction, 64.0, res)
-                if (res.found) {
-                    setBlock(res.blockPosition, Air, DefaultBlockState)
-                }
-            }
-        }
         if (playerInput.mouseButton2JustUp) {
             raycastResultPool.with { res ->
                 Raycast.doRaycast(this, camera.position, camera.direction, 64.0, res)
@@ -250,12 +220,27 @@ class ClientWorld(
                         y += (res.face?.relY ?: 0)
                         z += (res.face?.relZ ?: 0)
                     }
-                    setBlock(res.blockPosition, Test, Test.states.first { it.axis == res.face })
+                    setBlock(res.blockPosition, Grass, DefaultBlockState)//Test, Test.states.first { it.axis == res.face })
                 }
             }
         }
 
         clientWorldRenderer.render(camera, chunkList, width, height)
+
+        raycastResultPool.with { res ->
+            Raycast.doRaycast(this, camera.position, camera.direction, 64.0, res)
+            if (res.found) {
+                if (playerInput.mouseButton1JustUp) {
+                    setBlock(res.blockPosition, Air, DefaultBlockState)
+                } else {
+                    val blockState = getBlockAndState(res.blockPosition, blockStore)
+                    if (blockState != null) {
+                        @Suppress("UNCHECKED_CAST")
+                        selectionRenderer.render(camera, res.blockPosition, blockStore[0] as Block<BlockState>, blockState)
+                    }
+                }
+            }
+        }
     }
 
     override fun cleanup() {
@@ -268,5 +253,6 @@ class ClientWorld(
         chunkPosPool.cleanup()
         chunkManager.cleanup()
         clientWorldRenderer.cleanup()
+        selectionRenderer.cleanup()
     }
 }

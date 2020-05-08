@@ -1,4 +1,4 @@
-package com.sergeysav.voxel.client.renderer
+package com.sergeysav.voxel.client.renderer.world
 
 import com.sergeysav.voxel.client.FrontendProxy
 import com.sergeysav.voxel.client.camera.Camera
@@ -10,6 +10,7 @@ import com.sergeysav.voxel.client.gl.Texture2D
 import com.sergeysav.voxel.client.gl.TextureInterpolationMode
 import com.sergeysav.voxel.client.gl.bound
 import com.sergeysav.voxel.client.gl.setUniform
+import com.sergeysav.voxel.client.renderer.world.ClientWorldRenderer
 import com.sergeysav.voxel.common.bound
 import com.sergeysav.voxel.common.chunk.Chunk
 import mu.KotlinLogging
@@ -19,7 +20,6 @@ import org.lwjgl.opengl.GL20
 import org.lwjgl.opengl.GL21
 import org.lwjgl.opengl.GL30
 import org.lwjgl.opengl.GL40
-import org.lwjgl.opengl.GL43
 import org.lwjgl.system.MemoryUtil
 
 /**
@@ -125,7 +125,7 @@ class OITClientWorldRenderer : ClientWorldRenderer {
         visibleChunks.clear()
         for (i in chunks.indices) {
             val chunk = chunks[i]
-            if (chunk.loaded && (chunk.opaqueMesh != null || chunk.translucentMesh != null)) {
+            if (chunk.loaded && chunk.meshed && (chunk.opaqueMesh != null || chunk.translucentMesh != null)) {
                 val x = chunk.position.x * Chunk.SIZE.toFloat()
                 val y = chunk.position.y * Chunk.SIZE.toFloat()
                 val z = chunk.position.z * Chunk.SIZE.toFloat()
@@ -138,7 +138,9 @@ class OITClientWorldRenderer : ClientWorldRenderer {
         FrontendProxy.assetData.bound(0) {
             FrontendProxy.textureAtlas.bound(1) {
                 opaqueFrameBuffer.bound {
-                    GL30.glClearBufferfv(GL30.GL_COLOR, 0, opaqueClearColor)
+                    GL30.glClearBufferfv(GL30.GL_COLOR, 0,
+                        opaqueClearColor
+                    )
                     GL30.glClearBufferfi(GL30.GL_DEPTH_STENCIL, 0, 1f, 0)
 
                     FrontendProxy.voxelShader.bound { // Opaque Components are rendered normally
@@ -169,8 +171,12 @@ class OITClientWorldRenderer : ClientWorldRenderer {
 
                 // Render Transparent components to the 3d transparency accumulation framebuffer
                 transparentFrameBuffer.bound {
-                    GL30.glClearBufferfv(GL30.GL_COLOR, 0, accumClearColor)
-                    GL30.glClearBufferfv(GL30.GL_COLOR, 1, revealageClearColor)
+                    GL30.glClearBufferfv(GL30.GL_COLOR, 0,
+                        accumClearColor
+                    )
+                    GL30.glClearBufferfv(GL30.GL_COLOR, 1,
+                        revealageClearColor
+                    )
                     GL40.glBlendFunci(0, GL11.GL_ONE, GL11.GL_ONE)
                     GL40.glBlendFunci(1, GL11.GL_ZERO, GL11.GL_ONE_MINUS_SRC_COLOR)
                     GL40.glBlendEquationi(0, GL21.GL_FUNC_ADD)

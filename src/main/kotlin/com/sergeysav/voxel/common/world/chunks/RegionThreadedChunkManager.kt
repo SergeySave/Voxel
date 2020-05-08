@@ -5,13 +5,8 @@ import com.sergeysav.voxel.common.block.BlockPosition
 import com.sergeysav.voxel.common.block.state.BlockState
 import com.sergeysav.voxel.common.chunk.Chunk
 import com.sergeysav.voxel.common.chunk.ChunkPosition
-import com.sergeysav.voxel.common.chunk.MutableChunkPosition
-import com.sergeysav.voxel.common.chunk.queuing.ChunkQueuingStrategy
 import com.sergeysav.voxel.common.chunk.queuing.ChunkQueueingThread
-import com.sergeysav.voxel.common.pool.ConcurrentObjectPool
-import com.sergeysav.voxel.common.pool.ObjectPool
-import com.sergeysav.voxel.common.pool.SynchronizedObjectPool
-import com.sergeysav.voxel.common.pool.with
+import com.sergeysav.voxel.common.chunk.queuing.ChunkQueuingStrategy
 import com.sergeysav.voxel.common.region.Region
 import com.sergeysav.voxel.common.region.RegionManagerThread
 import com.sergeysav.voxel.common.world.World
@@ -19,6 +14,7 @@ import com.sergeysav.voxel.common.world.generator.ChunkGenerator
 import mu.KotlinLogging
 import java.nio.channels.FileChannel
 import java.nio.file.FileSystems
+import java.nio.file.Files
 import java.nio.file.StandardOpenOption
 import java.util.Collections
 import java.util.concurrent.ArrayBlockingQueue
@@ -59,12 +55,14 @@ class RegionThreadedChunkManager<C : Chunk>(
     )
     private val regionManagerThread = RegionManagerThread(
         { pos ->
+            Files.createDirectories(FileSystems.getDefault().getPath("$regionFilesBasePath/region.${pos.x}.${pos.y}.${pos.z}.vrf").parent)
             FileChannel.open(
                 FileSystems.getDefault().getPath("$regionFilesBasePath/region.${pos.x}.${pos.y}.${pos.z}.vrf"),
                 StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE
             )
         },
-        16,
+        ::getWorld,
+        128,
         "Region Threaded Region Manager Thread"
     )
     private val loadingThreads = Array(loadingParallelism) {
@@ -86,7 +84,7 @@ class RegionThreadedChunkManager<C : Chunk>(
             "Chunk Saving Thread $it"
         )
     }
-    private val toRelease = Collections.synchronizedList(ArrayList<C>(256))
+    private val toRelease: MutableList<C> = Collections.synchronizedList(ArrayList<C>(256))
 
     private lateinit var world: World<C>
     private lateinit var releaseCallback: (C) -> Unit
@@ -99,7 +97,9 @@ class RegionThreadedChunkManager<C : Chunk>(
     private fun onSave(chunk: C) {
         if (chunk in toRelease) {
             regionManagerThread.getRegion(chunk.position)?.loadedChunks?.remove(chunk.position)
-            toRelease.remove(chunk)
+            do { // Remove all (required or else chunks may be duplicated)
+                val removed= toRelease.remove(chunk)
+            } while (removed)
             releaseCallback(chunk)
         }
     }

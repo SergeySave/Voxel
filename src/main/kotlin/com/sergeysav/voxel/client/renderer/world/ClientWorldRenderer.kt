@@ -1,4 +1,4 @@
-package com.sergeysav.voxel.client.renderer
+package com.sergeysav.voxel.client.renderer.world
 
 import com.sergeysav.voxel.client.camera.Camera
 import com.sergeysav.voxel.client.chunk.ClientChunk

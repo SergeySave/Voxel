@@ -4,6 +4,7 @@ import com.sergeysav.voxel.client.chunk.ClientChunk
 import com.sergeysav.voxel.client.world.meshing.selection.MeshSelectionStrategy
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.BlockingQueue
+import java.util.concurrent.TimeUnit
 
 /**
  * @author sergeys
@@ -41,12 +42,17 @@ class MeshingSelectionThread(
 
             val c = meshSelectionStrategy.tryGetNext()
             if (c != null) {
-                if (dirtyQueue.offer(c)) {
+                if (dirtyQueue.offer(c, 2, TimeUnit.MILLISECONDS)) {
                     meshSelectionStrategy.remove(c)
                 }
             }
         }
         meshSelectionStrategy.clear()
+        while (dirtyQueue.isNotEmpty() || unDirtyingQueue.isNotEmpty()) {
+            dirtyQueue.clear()
+            unDirtyingQueue.clear()
+            sleep(100L) // Make sure that anything trying to read/write after this has been cancelled works
+        }
     }
 
     fun cancel() {

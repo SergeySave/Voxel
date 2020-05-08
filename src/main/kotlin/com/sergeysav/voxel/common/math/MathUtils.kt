@@ -17,4 +17,6 @@ fun Int.divisionRemainder(divisor: Int) = if (this % divisor < 0) {
 
 fun Int.square() = this * this
 
+fun Float.square() = this * this
+
 fun Double.square() = this * this

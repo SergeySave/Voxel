@@ -1,7 +1,7 @@
 package com.sergeysav.voxel.common.noise
 
-import org.joml.Random
 import org.joml.SimplexNoise
+import java.util.Random
 import kotlin.math.pow
 
 /**

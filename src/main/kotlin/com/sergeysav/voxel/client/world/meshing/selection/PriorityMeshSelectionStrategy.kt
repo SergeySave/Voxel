@@ -34,8 +34,7 @@ class PriorityMeshSelectionStrategy(private val blockPos: BlockPosition) : MeshS
     }
 
     private fun mapFunc(chunk: ClientChunk): Double {
-        return 50 * Random.nextDouble() -
-                1000 * chunk.adjacentLoadedChunks.get() +
+        return 1000 * chunk.adjacentLoadedChunks.get() +
                 70 * (((chunk.position.x + 0.5) - blockPos.x / Chunk.SIZE.toDouble()).square() +
                 ((chunk.position.y + 0.5) - blockPos.y / Chunk.SIZE.toDouble()).square() +
                 ((chunk.position.z + 0.5) - blockPos.z / Chunk.SIZE.toDouble()).square())

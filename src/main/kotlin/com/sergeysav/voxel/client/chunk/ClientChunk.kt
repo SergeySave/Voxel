@@ -19,17 +19,19 @@ class ClientChunk(position: ChunkPosition) : Chunk(position) {
     var translucentMesh: Mesh? = null
     var isMeshEmpty = true
     var loaded = false
+    var meshed = false
     var adjacentLoadedChunks = AtomicInteger(0)
 
     override fun reset() {
         isMeshEmpty = true
+        meshed = false
+//        opaqueMesh?.let { meshPool.put(it) }
+//        opaqueMesh = null
+//        translucentMesh?.let { meshPool.put(it) }
+//        translucentMesh = null
         loaded = false
-        opaqueMesh?.let { meshPool.put(it) }
-        opaqueMesh = null
-        translucentMesh?.let { meshPool.put(it) }
-        translucentMesh = null
-        adjacentLoadedChunks.set(0)
         super.reset()
+        adjacentLoadedChunks.set(0)
     }
 
     companion object {

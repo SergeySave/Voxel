@@ -3,6 +3,7 @@ package com.sergeysav.voxel.common.chunk.queuing
 import com.sergeysav.voxel.common.chunk.Chunk
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.BlockingQueue
+import java.util.concurrent.TimeUnit
 
 /**
  * @author sergeys
@@ -43,11 +44,16 @@ class ChunkQueueingThread<C : Chunk>(
             } while (added != null)
 
             val next = chunkQueuingStrategy.tryGetNext()
-            if (next != null && processingQueue.offer(next)) {
+            if (next != null && processingQueue.offer(next, 2, TimeUnit.MILLISECONDS)) {
                 chunkQueuingStrategy.remove(next)
             }
         }
         chunkQueuingStrategy.clear()
+        while (addQueue.isNotEmpty() || removeQueue.isNotEmpty()) {
+            addQueue.clear()
+            removeQueue.clear()
+            sleep(100L) // Make sure that anything trying to read/write after this has been cancelled works
+        }
     }
 
     fun addToQueue(chunk: C) {

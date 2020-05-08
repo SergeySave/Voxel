@@ -99,6 +99,7 @@ class SimpleChunkMesher(
         mesh.setIndexData(indexData, GLDataUsage.STATIC, indices)
 
         chunk.isMeshEmpty = indices == 0
+        chunk.meshed = true
 
         free = true
     }
