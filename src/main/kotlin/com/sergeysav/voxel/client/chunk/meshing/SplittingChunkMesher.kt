@@ -195,6 +195,15 @@ class SplittingChunkMesher(
                 }
             }
 
+            val lightingMultiplier = when(facing) {
+                Direction.West -> 0.8
+                Direction.South -> 0.9
+                Direction.Up -> 1.0
+                Direction.East -> 0.8
+                Direction.North -> 0.9
+                Direction.Down -> 0.7
+            }
+
             val baseX = facing.relX * 0.5 + facing.left.opposite.relX * 0.5 + facing.up.opposite.relX * 0.5 + 0.5
             val baseY = facing.relY * 0.5 + facing.left.opposite.relY * 0.5 + facing.up.opposite.relY * 0.5 + 0.5
             val baseZ = facing.relZ * 0.5 + facing.left.opposite.relZ * 0.5 + facing.up.opposite.relZ * 0.5 + 0.5
@@ -203,25 +212,25 @@ class SplittingChunkMesher(
                 baseX + facing.opposite.relX * inset + facing.left.relX * l1 + facing.up.relX * u1,
                 baseY + facing.opposite.relY * inset + facing.left.relY * l1 + facing.up.relY * u1,
                 baseZ + facing.opposite.relZ * inset + facing.left.relZ * l1 + facing.up.relZ * u1,
-                texture, facing, rotation, reflection, r1, g1, b1
+                texture, facing, rotation, reflection, r1 * lightingMultiplier, g1 * lightingMultiplier, b1 * lightingMultiplier
             )
             val v2 = addVertex(
                 baseX + facing.opposite.relX * inset + facing.left.relX * l2 + facing.up.relX * u2,
                 baseY + facing.opposite.relY * inset + facing.left.relY * l2 + facing.up.relY * u2,
                 baseZ + facing.opposite.relZ * inset + facing.left.relZ * l2 + facing.up.relZ * u2,
-                texture, facing, rotation, reflection, r2, g2, b2
+                texture, facing, rotation, reflection, r2 * lightingMultiplier, g2 * lightingMultiplier, b2 * lightingMultiplier
             )
             val v3 = addVertex(
                 baseX + facing.opposite.relX * inset + facing.left.relX * l3 + facing.up.relX * u3,
                 baseY + facing.opposite.relY * inset + facing.left.relY * l3 + facing.up.relY * u3,
                 baseZ + facing.opposite.relZ * inset + facing.left.relZ * l3 + facing.up.relZ * u3,
-                texture, facing, rotation, reflection, r3, g3, b3
+                texture, facing, rotation, reflection, r3 * lightingMultiplier, g3 * lightingMultiplier, b3 * lightingMultiplier
             )
             val v4 = addVertex(
                 baseX + facing.opposite.relX * inset + facing.left.relX * l4 + facing.up.relX * u4,
                 baseY + facing.opposite.relY * inset + facing.left.relY * l4 + facing.up.relY * u4,
                 baseZ + facing.opposite.relZ * inset + facing.left.relZ * l4 + facing.up.relZ * u4,
-                texture, facing, rotation, reflection, r4, g4, b4
+                texture, facing, rotation, reflection, r4 * lightingMultiplier, g4 * lightingMultiplier, b4 * lightingMultiplier
             )
 
             addTriangle(v1, v2, v3)

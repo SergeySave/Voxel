@@ -20,6 +20,7 @@ import java.nio.IntBuffer
  *
  * @constructor Creates a new SimpleChunkMesher
  */
+@Deprecated("Does not support default lighting")
 class SimpleChunkMesher(
     private val shortCircuitCallback: (SimpleChunkMesher)->Unit
 ) : ChunkMesher, ChunkMesherCallback {

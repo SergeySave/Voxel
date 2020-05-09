@@ -36,21 +36,16 @@ void main()
     float textureZ = float(subZ) / 4096.0;
     if (facingDirection == 0u) {
         vs_out.uv = vec2(-textureX, textureY);
-        vs_out.lighting *= 0.8;
     } else if (facingDirection == 1u) {
         vs_out.uv = vec2(textureZ, textureY);
-        vs_out.lighting *= 0.9;
     } else if (facingDirection == 2u) {
         vs_out.uv = vec2(-textureZ, -textureX);
     } else if (facingDirection == 3u) {
         vs_out.uv = vec2(textureX, textureY);
-        vs_out.lighting *= 0.8;
     } else if (facingDirection == 4u) {
         vs_out.uv = vec2(-textureZ, textureY);
-        vs_out.lighting *= 0.9;
     } else if (facingDirection == 5u) {
         vs_out.uv = vec2(-textureZ, textureX);
-        vs_out.lighting *= 0.7;
         if (rotation == 3u || rotation == 1u) { // This is required because I couldnt get it working on the bottom
             rotation = 4u - rotation;
         }
