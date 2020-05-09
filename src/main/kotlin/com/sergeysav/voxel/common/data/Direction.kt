@@ -53,5 +53,6 @@ sealed class Direction(val textureAxis: Int, val relX: Int, val relY: Int, val r
 
         }
         val all = listOf(West, South, Up, East, North, Down)
+        val flat = listOf(West, South, East, North)
     }
 }

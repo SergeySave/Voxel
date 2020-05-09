@@ -11,6 +11,7 @@ import com.sergeysav.voxel.common.block.BlockPosition
 import com.sergeysav.voxel.common.block.MutableBlockPosition
 import com.sergeysav.voxel.common.block.impl.Air
 import com.sergeysav.voxel.common.block.impl.Grass
+import com.sergeysav.voxel.common.block.impl.Water
 import com.sergeysav.voxel.common.block.state.BlockState
 import com.sergeysav.voxel.common.block.state.DefaultBlockState
 import com.sergeysav.voxel.common.chunk.ChunkPosition
@@ -211,20 +212,6 @@ class ClientWorld(
     }
 
     fun draw(camera: Camera, playerInput: PlayerInput, width: Int, height: Int) {
-        if (playerInput.mouseButton2JustUp) {
-            raycastResultPool.with { res ->
-                Raycast.doRaycast(this, camera.position, camera.direction, 64.0, res)
-                if (res.found) {
-                    res.blockPosition.apply {
-                        x += (res.face?.relX ?: 0)
-                        y += (res.face?.relY ?: 0)
-                        z += (res.face?.relZ ?: 0)
-                    }
-                    setBlock(res.blockPosition, Grass, DefaultBlockState)//Test, Test.states.first { it.axis == res.face })
-                }
-            }
-        }
-
         clientWorldRenderer.render(camera, chunkList, width, height)
 
         raycastResultPool.with { res ->
@@ -232,6 +219,13 @@ class ClientWorld(
             if (res.found) {
                 if (playerInput.mouseButton1JustUp) {
                     setBlock(res.blockPosition, Air, DefaultBlockState)
+                } else if (playerInput.mouseButton2JustUp) {
+                    res.blockPosition.apply {
+                        x += (res.face?.relX ?: 0)
+                        y += (res.face?.relY ?: 0)
+                        z += (res.face?.relZ ?: 0)
+                    }
+                    setBlock(res.blockPosition, Water, DefaultBlockState)//Test, Test.states.first { it.axis == res.face })
                 } else {
                     val blockState = getBlockAndState(res.blockPosition, blockStore)
                     if (blockState != null) {
