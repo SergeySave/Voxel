@@ -11,7 +11,9 @@ import com.sergeysav.voxel.common.chunk.ChunkPosition
 import com.sergeysav.voxel.common.chunk.MutableChunkPosition
 import com.sergeysav.voxel.common.chunk.datamapper.NaiveChunkDataMapper
 import com.sergeysav.voxel.common.chunk.datamapper.ZStdChunkDataMapper
+import com.sergeysav.voxel.common.chunk.datamapper.ZStdException
 import com.sergeysav.voxel.common.pool.ConcurrentObjectPool
+import com.sergeysav.voxel.common.pool.SynchronizedObjectPool
 import com.sergeysav.voxel.common.pool.with
 import com.sergeysav.voxel.common.world.World
 import mu.KotlinLogging
@@ -19,6 +21,8 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 import java.util.Collections
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.BlockingQueue
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 
@@ -41,8 +45,9 @@ class Region(
     private val sectorSortingBuffer = IntArray(CHUNKS) { it }
     private val sectorSortingBuffer2 = IntArray(CHUNKS) { 0 }
     val loadedChunks: MutableList<ChunkPosition> = Collections.synchronizedList(ArrayList<ChunkPosition>(1024))
-    private val metaUpdates = ArrayList<MetaUpdate>(16)
-    private val chunkUpdates = ArrayList<MutableChunkPosition>(16)
+    private val metaUpdates = ArrayList<MetaUpdate>(256)
+    private val metaAddingQueue: BlockingQueue<MetaUpdate> = ArrayBlockingQueue(256)
+    private val chunkUpdates = ArrayList<MutableChunkPosition>(256)
 
     init {
         versionBuffer.order(ByteOrder.BIG_ENDIAN)
@@ -87,8 +92,14 @@ class Region(
         if (mapperId == 1) {
             val newBuffer = chunkBuffer.slice()
             newBuffer.limit(length)
-            mapperPool.with {
-                it.readToChunk(newBuffer.slice(), chunk)
+            try {
+                mapperPool.with {
+                    it.readToChunk(newBuffer.slice(), chunk)
+                    return
+                }
+            } catch (ex: ZStdException) {
+                log.error(ex) { "An error occurred while reading chunk from file. This chunk will be regenerated." }
+                chunk.generated = false
                 return
             }
         } else if (mapperId == 0 && length == 0) {
@@ -103,6 +114,7 @@ class Region(
     fun tryLoadChunk(chunk: Chunk) {
         loadChunkInner(chunk, true)
         synchronized(metaUpdates) {
+            metaAddingQueue.drainTo(metaUpdates)
             applyMetaUpdatesToChunk(chunk)
         }
     }
@@ -178,8 +190,11 @@ class Region(
         metaUpdate.block = block as Block<BlockState>
         metaUpdate.state = state
         metaUpdate.age = 0
-        synchronized(metaUpdates) {
-            metaUpdates.add(metaUpdate)
+        metaAddingQueue.put(metaUpdate)
+        if (metaAddingQueue.remainingCapacity() < 8) {
+            synchronized(metaUpdates) {
+                metaAddingQueue.drainTo(metaUpdates)
+            }
         }
     }
 
@@ -187,6 +202,7 @@ class Region(
         synchronized(chunkUpdates) {
             chunkUpdates.clear()
             synchronized(metaUpdates) {
+                metaAddingQueue.drainTo(metaUpdates)
                 for (i in metaUpdates.size - 1 downTo 0) {
                     metaUpdates[i].age++
                     if (metaUpdates[i].age > 1000 && metaUpdates[i].chunkPosition in loadedChunks) {
@@ -322,20 +338,20 @@ class Region(
         const val CHUNKS = SIZE * SIZE * SIZE
         private val log = KotlinLogging.logger {  }
 
-        private val mapperPool = ConcurrentObjectPool({
+        private val mapperPool = SynchronizedObjectPool({
             ZStdChunkDataMapper(NaiveChunkDataMapper(), ZStdChunkDataMapper.CompressionLevel.BT_ULTRA2, 256)
-        }, 4)
-        private val tempBufferPool = ConcurrentObjectPool({
+        }, 8)
+        private val tempBufferPool = SynchronizedObjectPool({
             ByteBuffer.allocateDirect(Chunk.SIZE * Chunk.SIZE * Chunk.SIZE * 256)
-        }, 4)
-        private val metaUpdatePool = ConcurrentObjectPool({
+        }, 8)
+        private val metaUpdatePool = SynchronizedObjectPool({
             @Suppress("UNCHECKED_CAST")
             MetaUpdate(MutableChunkPosition(), MutableBlockPosition(), Air as Block<BlockState>, DefaultBlockState, 0)
-        }, 4)
-        private val metaUpdateChunkPool = ConcurrentObjectPool({
+        }, 128)
+        private val metaUpdateChunkPool = SynchronizedObjectPool({
             Chunk(MutableChunkPosition())
         }, 1)
-        private val chunkPosPool = ConcurrentObjectPool({ MutableChunkPosition() }, 32)
+        private val chunkPosPool = SynchronizedObjectPool({ MutableChunkPosition() }, 32)
     }
 
     class MetaUpdate(

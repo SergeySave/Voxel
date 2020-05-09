@@ -42,7 +42,7 @@ class ZStdChunkDataMapper(
         val amountDecompressed = Zstd.ZSTD_decompressDCtx(decompContext, workingBuffer, byteBuffer)
         if (Zstd.ZSTD_isError(amountDecompressed)) {
             log.error { "Decompression Error. Incoming size: ${byteBuffer.limit()}" }
-            error(Zstd.ZSTD_getErrorName(amountDecompressed))
+            throw ZStdException(Zstd.ZSTD_getErrorName(amountDecompressed))
         }
         workingBuffer.limit(amountDecompressed.toInt())
         wrappedMapper.readToChunk(workingBuffer, chunk)

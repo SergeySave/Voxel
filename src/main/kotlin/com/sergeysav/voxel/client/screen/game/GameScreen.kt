@@ -8,6 +8,7 @@ import com.sergeysav.voxel.client.chunk.ClientChunk
 import com.sergeysav.voxel.client.gl.bound
 import com.sergeysav.voxel.client.player.PlayerInput
 import com.sergeysav.voxel.client.renderer.blockselection.BoundingBoxFullSelectionRenderer
+import com.sergeysav.voxel.client.renderer.blockselection.BoundingBoxVisibleSelectionRenderer
 import com.sergeysav.voxel.client.renderer.world.DefaultClientWorldRenderer
 import com.sergeysav.voxel.client.screen.Screen
 import com.sergeysav.voxel.client.settings.GraphicsSettings
@@ -65,7 +66,7 @@ class GameScreen(graphicsSettings: GraphicsSettings) : Screen {
         meshingManager,
         chunkManager,
         DefaultClientWorldRenderer(),
-        BoundingBoxFullSelectionRenderer(0f, 0f, 0f, 1f, 0.0015f)
+        BoundingBoxVisibleSelectionRenderer(0f, 0f, 0f, 1f, 0.0015f)
     )
     private var callback: ((Double, Double)->Boolean)? = null
     private var firstMouse = true
