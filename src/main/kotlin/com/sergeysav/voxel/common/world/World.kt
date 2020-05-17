@@ -19,7 +19,7 @@ interface World<out C : Chunk> {
     fun <T : BlockState> setBlock(chunkPosition: ChunkPosition, localPosition: BlockPosition, block: Block<T>, blockState: T)
 
     /**
-     * This should only be used by terrain generation. It can be much slower than the [setBlock] method.
+     * This should only be used by terrain generation. It is much slower than the [setBlock] method.
      */
     fun <T : BlockState> setBlockOrMeta(blockPosition: BlockPosition, block: Block<T>, blockState: T)
 

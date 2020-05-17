@@ -5,7 +5,6 @@ import com.sergeysav.voxel.common.block.BlockPosition
 import com.sergeysav.voxel.common.chunk.Chunk
 import com.sergeysav.voxel.common.math.square
 import mu.KotlinLogging
-import kotlin.random.Random
 
 /**
  * @author sergeys
@@ -15,7 +14,8 @@ import kotlin.random.Random
 class PriorityMeshSelectionStrategy(private val blockPos: BlockPosition) : MeshSelectionStrategy {
 
     private val log = KotlinLogging.logger {  }
-    private val chunks = ArrayList<ClientChunk>(1000)
+    private val chunks = ArrayList<ClientChunk>(4096)
+    private var cachedResult: ClientChunk? = null
 
     init {
         log.trace { "Initializing Mesh Selection Strategy" }
@@ -26,11 +26,16 @@ class PriorityMeshSelectionStrategy(private val blockPos: BlockPosition) : MeshS
     override fun add(chunk: ClientChunk) {
         if (!chunks.contains(chunk)) {
             chunks.add(chunk)
+            val cached = cachedResult
+            if (cached != null && mapFunc(chunk) < mapFunc(cached)) {
+                cachedResult = chunk
+            }
         }
     }
 
     override fun remove(chunk: ClientChunk) {
         chunks.remove(chunk)
+        cachedResult = null
     }
 
     private fun mapFunc(chunk: ClientChunk): Double {
@@ -41,6 +46,7 @@ class PriorityMeshSelectionStrategy(private val blockPos: BlockPosition) : MeshS
     }
 
     override fun tryGetNext(): ClientChunk? {
+        if (cachedResult != null) return cachedResult
         var minVal = Double.POSITIVE_INFINITY
         var minChunk: ClientChunk? = null
         for (i in 0 until chunks.size) {
@@ -50,10 +56,12 @@ class PriorityMeshSelectionStrategy(private val blockPos: BlockPosition) : MeshS
                 minVal = chunkVal
             }
         }
+        cachedResult = minChunk
         return minChunk
     }
 
     override fun clear() {
         chunks.clear()
+        cachedResult = null
     }
 }

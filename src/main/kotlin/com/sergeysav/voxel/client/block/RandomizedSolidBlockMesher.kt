@@ -15,7 +15,7 @@ import java.util.Random
 /**
  * @author sergeys
  *
- * @constructor Creates a new SolidBlockMesher
+ * @constructor Creates a new RandomizedSolidBlockMesher
  */
 open class RandomizedSolidBlockMesher<B : Block<out S>, S : BlockState>(
     val texture: TextureResource
@@ -26,20 +26,21 @@ open class RandomizedSolidBlockMesher<B : Block<out S>, S : BlockState>(
 
     private fun getSeed(pos: BlockPosition, block: B, state: S, direction: Direction, salt: Long) = (((pos.hashCode() * 31L + block.hashCode()) * 31L + state.hashCode()) * 31L + direction.hashCode()) * 31L + salt
 
-    protected fun random(pos: BlockPosition, block: B, state: S, direction: Direction, salt: Long) = randomPool.with {
-        it.setSeed(getSeed(pos, block, state, direction, salt))
-        it.nextDouble()
+    protected fun random(pos: BlockPosition, block: B, state: S, direction: Direction, salt: Long): Random {
+        val rand = random.get()
+        rand.setSeed(getSeed(pos, block, state, direction, salt))
+        return rand
     }
 
     override fun getAxisTexture(pos: BlockPosition, block: B, state: S, direction: Direction): TextureResource = texture
 
     override fun getAxisRotation(pos: BlockPosition, block: B, state: S, direction: Direction): BlockTextureRotation
-            = BlockTextureRotation.all[(random(pos, block, state, direction, 0L) * BlockTextureRotation.all.size).toInt()]
+            = BlockTextureRotation.all[(random(pos, block, state, direction, 0L).nextInt(BlockTextureRotation.all.size)).toInt()]
 
     override fun getAxisReflection(pos: BlockPosition, block: B, state: S, direction: Direction): BlockTextureReflection
-            = BlockTextureReflection.all[(random(pos, block, state, direction, 1L) * BlockTextureReflection.all.size).toInt()]
+            = BlockTextureReflection.all[(random(pos, block, state, direction, 1L).nextInt(BlockTextureReflection.all.size)).toInt()]
 
     companion object {
-        val randomPool = LocalObjectPool({ Random() }, 1)
+        val random = ThreadLocal.withInitial { Random() }
     }
 }

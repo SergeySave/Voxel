@@ -10,7 +10,6 @@ import com.sergeysav.voxel.common.block.Block
 import com.sergeysav.voxel.common.block.BlockPosition
 import com.sergeysav.voxel.common.block.MutableBlockPosition
 import com.sergeysav.voxel.common.block.impl.Air
-import com.sergeysav.voxel.common.block.impl.Grass
 import com.sergeysav.voxel.common.block.impl.Water
 import com.sergeysav.voxel.common.block.state.BlockState
 import com.sergeysav.voxel.common.block.state.DefaultBlockState
@@ -42,8 +41,8 @@ class ClientWorld(
 ) : World<ClientChunk> {
 
     private val log = KotlinLogging.logger {  }
-    private val blockPosPool = LocalObjectPool({ MutableBlockPosition() }, 5)
-    private val chunkPosPool = LocalObjectPool({ MutableChunkPosition() }, 5)
+    private val blockPosPool = LocalObjectPool({ MutableBlockPosition() }, 32)
+    private val chunkPosPool = LocalObjectPool({ MutableChunkPosition() }, 32)
     private val raycastResultPool = LocalObjectPool({ RaycastResult(false, RaycastResult.RaycastOutcome.COMPLETED, MutableBlockPosition(), null, null) }, 1)
     private val chunks = HashMap<ChunkPosition, ClientChunk>()
     private val chunkList = ArrayList<ClientChunk>(4096)

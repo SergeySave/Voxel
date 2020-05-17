@@ -7,6 +7,7 @@ import com.sergeysav.voxel.client.gl.UVec3VertexAttribute
 import com.sergeysav.voxel.client.resource.texture.TextureResource
 import com.sergeysav.voxel.common.Voxel
 import com.sergeysav.voxel.common.block.Block
+import com.sergeysav.voxel.common.block.BlockPosition
 import com.sergeysav.voxel.common.block.MutableBlockPosition
 import com.sergeysav.voxel.common.block.state.BlockState
 import com.sergeysav.voxel.common.chunk.Chunk
@@ -141,6 +142,16 @@ class SplittingChunkMesher(
         }
     }
 
+    private fun getBlock(blockPosition: MutableBlockPosition, chunk: ClientChunk): Block<*>? {
+        if (blockPosition.x >= chunk.position.x * Chunk.SIZE && blockPosition.x < (chunk.position.x + 1) * Chunk.SIZE &&
+            blockPosition.y >= chunk.position.y * Chunk.SIZE && blockPosition.y < (chunk.position.y + 1) * Chunk.SIZE &&
+            blockPosition.z >= chunk.position.z * Chunk.SIZE && blockPosition.z < (chunk.position.z + 1) * Chunk.SIZE) {
+            blockPosition.setToChunkLocal()
+            return chunk.getBlock(blockPosition)
+        }
+        return world.getBlock(blockPosition)
+    }
+
     companion object {
         private val clientChunkPackedVertexDataAttribute = UVec3VertexAttribute("packedVertexData")
     }
@@ -210,6 +221,7 @@ class SplittingChunkMesher(
             border: Boolean,
             applyDefaultLighting: Boolean
         ): Boolean {
+            // Quickly quit if we were cancelled
             val chunk = chunk ?: return false
 
             // Adjacency optimization
@@ -217,7 +229,7 @@ class SplittingChunkMesher(
                 blockPos2.x = blockPos.x + facing.relX + chunk.position.x * 16
                 blockPos2.y = blockPos.y + facing.relY + chunk.position.y * 16
                 blockPos2.z = blockPos.z + facing.relZ + chunk.position.z * 16
-                val block = world.getBlock(blockPos2)
+                val block = getBlock(blockPos2, chunk)
                 if (block != null) {
                     @Suppress("UNCHECKED_CAST")
                     val mesher = Voxel.getBlockMesher<ChunkMesherCallback, Block<BlockState>, BlockState>(block as Block<BlockState>) as ClientBlockMesher<Block<BlockState>, BlockState>?

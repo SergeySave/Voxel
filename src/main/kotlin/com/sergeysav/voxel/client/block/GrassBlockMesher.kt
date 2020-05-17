@@ -13,7 +13,7 @@ import kotlin.random.Random
 /**
  * @author sergeys
  *
- * @constructor Creates a new AxialSolidBlockMesher
+ * @constructor Creates a new GrassBlockMesher
  */
 class GrassBlockMesher<B : Block<out S>, S : BlockState>(
     private val up: TextureResource,
@@ -30,7 +30,7 @@ class GrassBlockMesher<B : Block<out S>, S : BlockState>(
     override fun getAxisReflection(pos: BlockPosition, block: B, state: S, direction: Direction) = when (direction) {
         Direction.Up -> super.getAxisReflection(pos, block, state, direction)
         Direction.Down -> super.getAxisReflection(pos, block, state, direction)
-        else -> if(random(pos, block, state, direction, 2) > 0.5) {
+        else -> if(random(pos, block, state, direction, 2).nextBoolean()) {
             BlockTextureReflection.NO_REFLECT
         } else {
             BlockTextureReflection.X_REFLECT
