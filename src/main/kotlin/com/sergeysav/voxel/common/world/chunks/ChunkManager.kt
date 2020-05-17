@@ -17,9 +17,9 @@ interface ChunkManager<C : Chunk> {
      *
      * @param world the world that this chunk manager is managing
      * @param chunkReleaseCallback this should be called with a chunk to signify that a chunk was unloaded successfully
-     * @param callback this should be called with a chunk to signify that a chunk was loaded successfully
+     * @param chunkLoadedCallback this should be called with a chunk to signify that a chunk was loaded successfully
      */
-    fun initialize(world: World<C>, chunkReleaseCallback: (C) -> Unit, callback: (C)->Unit)
+    fun initialize(world: World<C>, chunkReleaseCallback: (C) -> Unit, chunkLoadedCallback: (C)->Unit)
 
     /**
      * Used to request a chunk's data to be loaded

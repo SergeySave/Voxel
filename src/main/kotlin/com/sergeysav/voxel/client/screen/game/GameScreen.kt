@@ -7,7 +7,6 @@ import com.sergeysav.voxel.client.camera.CameraController
 import com.sergeysav.voxel.client.chunk.ClientChunk
 import com.sergeysav.voxel.client.gl.bound
 import com.sergeysav.voxel.client.player.PlayerInput
-import com.sergeysav.voxel.client.renderer.blockselection.BoundingBoxFullSelectionRenderer
 import com.sergeysav.voxel.client.renderer.blockselection.BoundingBoxVisibleSelectionRenderer
 import com.sergeysav.voxel.client.renderer.world.DefaultClientWorldRenderer
 import com.sergeysav.voxel.client.screen.Screen
@@ -45,8 +44,7 @@ class GameScreen(graphicsSettings: GraphicsSettings) : Screen {
         PriorityMeshSelectionStrategy(blockPos),
         parallelism = graphicsSettings.meshingSettings.parallelism,
         meshesPerFrame = graphicsSettings.meshingSettings.meshesPerFrame,
-        internalQueueSize = graphicsSettings.meshingSettings.internalQueueSize,
-        dirtyQueueSize = graphicsSettings.meshingSettings.dirtyQueueSize
+        internalQueueSize = graphicsSettings.meshingSettings.internalQueueSize
     )
     private val loadingChunkQueuingStrategy = ClosestChunkQueuingStrategy<ClientChunk>(blockPos)
     private val savingChunkQueuingStrategy = ClosestChunkQueuingStrategy<ClientChunk>(blockPos)
@@ -55,8 +53,6 @@ class GameScreen(graphicsSettings: GraphicsSettings) : Screen {
         savingChunkQueuingStrategy,
         DevTestGenerator2(0),
         regionFilesBasePath = graphicsSettings.chunkManagerSettings.regionFilesBasePath,
-        processingQueueSize = graphicsSettings.chunkManagerSettings.loadingQueueSize,
-        savingQueueSize = graphicsSettings.chunkManagerSettings.savingQueueSize,
         internalQueueSize = graphicsSettings.chunkManagerSettings.internalQueueSize,
         loadingParallelism = graphicsSettings.chunkManagerSettings.loadingParallelism,
         savingParallelism = graphicsSettings.chunkManagerSettings.savingParallelism

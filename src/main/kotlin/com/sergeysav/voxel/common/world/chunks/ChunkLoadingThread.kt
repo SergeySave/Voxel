@@ -6,7 +6,6 @@ import com.sergeysav.voxel.common.world.World
 import com.sergeysav.voxel.common.world.generator.ChunkGenerator
 import mu.KotlinLogging
 import java.util.concurrent.BlockingQueue
-import kotlin.math.log
 
 /**
  * @author sergeys
@@ -34,21 +33,28 @@ class ChunkLoadingThread<C : Chunk>(
 
         while (alive) {
             val c = processingQueue.take()
-            var region = regionManagerThread.getRegion(c.position)
-            if (region == null) {
-                do {
-                    regionManagerThread.requestRegionLoad(c.position)
-                    region = regionManagerThread.getRegion(c.position)
-                } while (region == null)
+            if (c.state != Chunk.State.EMPTY) continue
+
+            c.state = Chunk.State.LOADING // Set loading state
+
+            val region = regionManagerThread.getRegion(c.position)
+
+            if (c.state != Chunk.State.LOADING) {
+                continue
             }
 
             // Increment the number of loaded chunks
             region.loadedChunks.add(c.position)
             region.tryLoadChunk(c)
+
+            if (c.state != Chunk.State.LOADING) continue
+
             if (!c.generated) {
                 generator.generateChunk(c, worldSource())
+                if (c.state != Chunk.State.LOADING) continue
                 c.generated = true
             }
+
             callback(c)
         }
     }

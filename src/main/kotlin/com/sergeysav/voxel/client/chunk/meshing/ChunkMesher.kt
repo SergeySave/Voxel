@@ -10,7 +10,9 @@ interface ChunkMesher {
 
     val free: Boolean
     val ready: Boolean
+    val chunk: ClientChunk?
 
     fun generateMesh(world: World<*>, chunk: ClientChunk)
     fun applyMesh()
+    fun cancel()
 }

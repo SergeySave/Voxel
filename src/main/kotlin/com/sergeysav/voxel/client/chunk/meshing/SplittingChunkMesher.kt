@@ -18,13 +18,14 @@ import java.nio.IntBuffer
 /**
  * @author sergeys
  *
- * @constructor Creates a new AdjacentChunkMesher
+ * @constructor Creates a new SplittingChunkMesher
  */
 class SplittingChunkMesher(
     private val shortCircuitCallback: (SplittingChunkMesher)->Unit
 ) : ChunkMesher {
 
-    private lateinit var chunk: ClientChunk
+    override var chunk: ClientChunk? = null
+    private var chunkModificationIndicator = 0
     private lateinit var world: World<*>
     private val blockPos = MutableBlockPosition()
     private val globalBlockPos = MutableBlockPosition()
@@ -46,9 +47,10 @@ class SplittingChunkMesher(
         opaqueCallback.reset()
         translucentCallback.reset()
         this.chunk = chunk
+        this.chunkModificationIndicator = chunk.modificationIndicator
         this.world = world
 
-        for (x in 0 until 16) {
+        meshingLoop@for (x in 0 until 16) {
             for (y in 0 until 16) {
                 for (z in 0 until 16) {
                     blockPos.x = x
@@ -64,11 +66,18 @@ class SplittingChunkMesher(
                     val mesher = Voxel.getBlockMesher<ChunkMesherCallback, Block<BlockState>, BlockState>(block) as ClientBlockMesher<Block<BlockState>, BlockState>?
                     mesher?.addToMesh(opaqueCallback, translucentCallback, globalBlockPos, block, blockState, world)
                 }
+
+                // Simple check whether the chunk has been modified while we have been attempting to mesh it
+                if (chunk.modificationIndicator != this.chunkModificationIndicator) cancel()
+
+                if (this.chunk == null) { // Only check after every column (so that it doesnt waste too much time)
+                    break@meshingLoop // If meshing needs to end early
+                }
             }
         }
 
-        if (opaqueCallback.indices == 0 && translucentCallback.indices == 0 && chunk.isMeshEmpty) {
-            // Empty chunks, whose meshes were empty last time
+        if ((opaqueCallback.indices == 0 && translucentCallback.indices == 0 && chunk.isMeshEmpty) || this.chunk == null) {
+            // Empty chunks, whose meshes were empty last time OR we were cancelled
             ready = false
             free = true
             shortCircuitCallback(this)
@@ -82,34 +91,54 @@ class SplittingChunkMesher(
     override fun applyMesh() {
         ready = false
 
-        var opaqueMesh = chunk.opaqueMesh
-        if (opaqueMesh == null) {
-            opaqueMesh = ClientChunk.meshPool.get()
-            chunk.opaqueMesh = opaqueMesh
-        }
-        if (!opaqueMesh.fullyInitialized) {
-            opaqueMesh.setVertices(opaqueCallback.vertexData, GLDataUsage.STATIC, clientChunkPackedVertexDataAttribute)
-        } else {
-            opaqueMesh.setVertexData(opaqueCallback.vertexData)
-        }
-        opaqueMesh.setIndexData(opaqueCallback.indexData, GLDataUsage.STATIC, opaqueCallback.indices)
+        val chunk = chunk
+        if (chunk != null) {
+            var opaqueMesh = chunk.opaqueMesh
+            if (opaqueMesh == null) {
+                opaqueMesh = ClientChunk.meshPool.get()
+                chunk.opaqueMesh = opaqueMesh
+            }
+            if (!opaqueMesh.fullyInitialized) {
+                opaqueMesh.setVertices(
+                    opaqueCallback.vertexData,
+                    GLDataUsage.STATIC,
+                    clientChunkPackedVertexDataAttribute
+                )
+            } else {
+                opaqueMesh.setVertexData(opaqueCallback.vertexData)
+            }
+            opaqueMesh.setIndexData(opaqueCallback.indexData, GLDataUsage.STATIC, opaqueCallback.indices)
 
-        var translucentMesh = chunk.translucentMesh
-        if (translucentMesh == null) {
-            translucentMesh = ClientChunk.meshPool.get()
-            chunk.translucentMesh = translucentMesh
-        }
-        if (!translucentMesh.fullyInitialized) {
-            translucentMesh.setVertices(translucentCallback.vertexData, GLDataUsage.STATIC, clientChunkPackedVertexDataAttribute)
-        } else {
-            translucentMesh.setVertexData(translucentCallback.vertexData)
-        }
-        translucentMesh.setIndexData(translucentCallback.indexData, GLDataUsage.STATIC, translucentCallback.indices)
+            var translucentMesh = chunk.translucentMesh
+            if (translucentMesh == null) {
+                translucentMesh = ClientChunk.meshPool.get()
+                chunk.translucentMesh = translucentMesh
+            }
+            if (!translucentMesh.fullyInitialized) {
+                translucentMesh.setVertices(
+                    translucentCallback.vertexData,
+                    GLDataUsage.STATIC,
+                    clientChunkPackedVertexDataAttribute
+                )
+            } else {
+                translucentMesh.setVertexData(translucentCallback.vertexData)
+            }
+            translucentMesh.setIndexData(translucentCallback.indexData, GLDataUsage.STATIC, translucentCallback.indices)
 
-        chunk.isMeshEmpty = opaqueCallback.indices == 0 && translucentCallback.indices == 0
-        chunk.meshed = true
+            chunk.isMeshEmpty = opaqueCallback.indices == 0 && translucentCallback.indices == 0
+            chunk.meshed = true
+        }
 
         free = true
+    }
+
+    override fun cancel() {
+        chunk = null
+        if (ready) { // If we were prepared to apply the mesh simply short-circuit
+            ready = false
+            free = true
+            shortCircuitCallback(this)
+        }
     }
 
     companion object {
@@ -181,6 +210,8 @@ class SplittingChunkMesher(
             border: Boolean,
             applyDefaultLighting: Boolean
         ): Boolean {
+            val chunk = chunk ?: return false
+
             // Adjacency optimization
             if (border) {
                 blockPos2.x = blockPos.x + facing.relX + chunk.position.x * 16

@@ -35,7 +35,6 @@ class RegionManagerThread(
     private var index = 0
 
     private val addQueue: BlockingQueue<MutableRegionPosition> = ArrayBlockingQueue(addRemoveQueueSize)
-//    private val removeQueue: BlockingQueue<MutableRegionPosition> = ArrayBlockingQueue(addRemoveQueueSize)
     private val regionPosPool: ObjectPool<MutableRegionPosition> = LocalObjectPool({ MutableRegionPosition() }, 5)
 
     override fun run() {
@@ -79,12 +78,21 @@ class RegionManagerThread(
         val pos = regionPosPool.get()
         pos.setToRegionOf(chunkPosition)
         // Only add it to the queue if we don't know that it is loaded
-        if (getRegion(pos) == null) {
+        if (tryGetRegion(pos) == null) {
             addQueue.put(pos)
         }
     }
 
-    fun getRegion(regionPosition: RegionPosition): Region? {
+    fun requestRegionLoad(regionPosition: RegionPosition) {
+        val pos = regionPosPool.get()
+        pos.set(regionPosition)
+        // Only add it to the queue if we don't know that it is loaded
+        if (tryGetRegion(pos) == null) {
+            addQueue.put(pos)
+        }
+    }
+
+    fun tryGetRegion(regionPosition: RegionPosition): Region? {
         for (i in 0 until regions.size) {
             regions.getOrNull(i)?.let {
                 if (it.position == regionPosition) {
@@ -95,7 +103,23 @@ class RegionManagerThread(
         return null
     }
 
-    fun getRegion(chunkPosition: ChunkPosition): Region? = regionPosPool.with {
+    fun tryGetRegion(chunkPosition: ChunkPosition): Region? = regionPosPool.with {
+        it.setToRegionOf(chunkPosition)
+        tryGetRegion(it)
+    }
+
+    fun getRegion(regionPosition: RegionPosition): Region {
+        var region = tryGetRegion(regionPosition)
+        if (region == null) {
+            do {
+                requestRegionLoad(regionPosition)
+                region = tryGetRegion(regionPosition)
+            } while (region == null)
+        }
+        return region
+    }
+
+    fun getRegion(chunkPosition: ChunkPosition): Region = regionPosPool.with {
         it.setToRegionOf(chunkPosition)
         getRegion(it)
     }

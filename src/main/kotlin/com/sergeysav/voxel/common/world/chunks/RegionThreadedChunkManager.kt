@@ -7,7 +7,6 @@ import com.sergeysav.voxel.common.chunk.Chunk
 import com.sergeysav.voxel.common.chunk.ChunkPosition
 import com.sergeysav.voxel.common.chunk.queuing.ChunkQueueingThread
 import com.sergeysav.voxel.common.chunk.queuing.ChunkQueuingStrategy
-import com.sergeysav.voxel.common.region.Region
 import com.sergeysav.voxel.common.region.RegionManagerThread
 import com.sergeysav.voxel.common.world.World
 import com.sergeysav.voxel.common.world.generator.ChunkGenerator
@@ -16,9 +15,6 @@ import java.nio.channels.FileChannel
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.StandardOpenOption
-import java.util.Collections
-import java.util.concurrent.ArrayBlockingQueue
-import java.util.concurrent.BlockingQueue
 
 /**
  * @author sergeys
@@ -26,103 +22,78 @@ import java.util.concurrent.BlockingQueue
  * @constructor Creates a new RegionThreadedChunkManager
  */
 class RegionThreadedChunkManager<C : Chunk>(
-    loadingChunkQueuingStrategy: ChunkQueuingStrategy<C>,
-    savingChunkQueuingStrategy: ChunkQueuingStrategy<C>,
+    loadingStrategy: ChunkQueuingStrategy<C>,
+    savingStrategy: ChunkQueuingStrategy<C>,
     chunkGenerator: ChunkGenerator<in Chunk>,
-    processingQueueSize: Int = 1,
-    savingQueueSize: Int = 64,
     internalQueueSize: Int = 64,
     loadingParallelism: Int = 1,
     savingParallelism: Int = 1,
     regionFilesBasePath: String
 ) : ChunkManager<C> {
 
-    private val log = KotlinLogging.logger {  }
-    private val chunkProcessingQueue: BlockingQueue<C> = ArrayBlockingQueue(processingQueueSize)
-    private val chunkSavingQueue: BlockingQueue<C> = ArrayBlockingQueue(savingQueueSize)
-    private val loadingQueueingThread = ChunkQueueingThread(
-        loadingChunkQueuingStrategy,
-        internalQueueSize,
-        chunkProcessingQueue,
-        "Region Threaded Chunk Manager Loading Queue Thread",
-        ::onUnqueue
-    )
-    private val savingQueueingThread = ChunkQueueingThread(
-        savingChunkQueuingStrategy,
-        internalQueueSize,
-        chunkSavingQueue,
-        "Region Threaded Chunk Manager Saving Queue Thread"
-    )
-    private val regionManagerThread = RegionManagerThread(
-        { pos ->
-            Files.createDirectories(FileSystems.getDefault().getPath("$regionFilesBasePath/region.${pos.x}.${pos.y}.${pos.z}.vrf").parent)
-            FileChannel.open(
-                FileSystems.getDefault().getPath("$regionFilesBasePath/region.${pos.x}.${pos.y}.${pos.z}.vrf"),
-                StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE
-            )
-        },
-        ::getWorld,
-        128,
-        "Region Threaded Region Manager Thread"
-    )
-    private val loadingThreads = Array(loadingParallelism) {
-        ChunkLoadingThread(
-            chunkProcessingQueue,
-            chunkGenerator,
-            regionManagerThread,
-            ::loadedCallback,
-            ::getWorld,
-            "Chunk Loading Thread $it"
-        )
-    }
-    private val savingThreads = Array(savingParallelism) {
-        ChunkSavingThread(
-            chunkSavingQueue,
-            regionManagerThread,
-            ::onSave,
-            { c -> savingQueueingThread.addToQueue(c) },
-            "Chunk Saving Thread $it"
-        )
-    }
-    private val toRelease: MutableList<C> = Collections.synchronizedList(ArrayList<C>(256))
-
+    private val log = KotlinLogging.logger { }
     private lateinit var world: World<C>
-    private lateinit var releaseCallback: (C) -> Unit
-    private lateinit var callback: (C) -> Unit
+    private lateinit var chunkReleaseCallback: (C) -> Unit
+    private lateinit var chunkLoadedCallback: (C) -> Unit
+
+    private val loadingQueue = ChunkQueueingThread(loadingStrategy, internalQueueSize, "Chunk Loading Queue Thread", ::removeFromLoadCallback)
+    private val savingQueue = ChunkQueueingThread(savingStrategy, internalQueueSize, "Chunk Saving Queue Thread")
+    private val regionManager = RegionManagerThread({ pos ->
+        Files.createDirectories(FileSystems.getDefault().getPath("$regionFilesBasePath/region.${pos.x}.${pos.y}.${pos.z}.vrf").parent)
+        FileChannel.open(
+            FileSystems.getDefault().getPath("$regionFilesBasePath/region.${pos.x}.${pos.y}.${pos.z}.vrf"),
+            StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE
+        )
+    }, this::world, internalQueueSize, "Region Manager Thread")
+
+    private val loadingThreads = Array(loadingParallelism) { ChunkLoadingThread(
+        loadingQueue.output, chunkGenerator, regionManager, ::loadedCallback,
+        this::world, "Chunk Loading Thread $it"
+    ) }
+    private val savingThreads = Array(savingParallelism) { ChunkSavingThread(
+        savingQueue.output, regionManager, ::savedCallback, savingQueue::addToQueue, "Chunk Saving Thread $it"
+    ) }
+
+    private fun removeFromLoadCallback(chunk: C) {
+        when (chunk.state) {
+            Chunk.State.DYING -> {
+                savingQueue.addToQueue(chunk)
+            }
+            Chunk.State.LOADING, Chunk.State.EMPTY -> {
+                chunk.state = Chunk.State.DEAD // Cancel any loading
+                regionManager.tryGetRegion(chunk.position)?.loadedChunks?.remove(chunk.position)
+                chunkReleaseCallback(chunk)
+            }
+            else -> {
+                log.error { "A non-dying, non-loading chunk was removed from the loading queue." }
+            }
+        }
+    }
 
     private fun loadedCallback(chunk: C) {
-        callback(chunk)
-    }
-
-    private fun onSave(chunk: C) {
-        if (chunk in toRelease) {
-            regionManagerThread.getRegion(chunk.position)?.loadedChunks?.remove(chunk.position)
-            do { // Remove all (required or else chunks may be duplicated)
-                val removed= toRelease.remove(chunk)
-            } while (removed)
-            releaseCallback(chunk)
+        if (chunk.state == Chunk.State.LOADING) {
+            chunk.state = Chunk.State.ALIVE
+            chunkLoadedCallback(chunk)
         }
     }
 
-    private fun onUnqueue(chunk: C) {
-        // Unload the chunk's region if it was the last chunk that was still loaded in said region
-        val region = regionManagerThread.getRegion(chunk.position)
-        if (region != null) {
-            savingQueueingThread.addToQueue(chunk)
+    private fun savedCallback(chunk: C) {
+        if (chunk.state == Chunk.State.FINALIZING) {
+            chunk.state = Chunk.State.DEAD
+            regionManager.tryGetRegion(chunk.position)?.loadedChunks?.remove(chunk.position)
+            chunkReleaseCallback(chunk)
         }
     }
 
-    private fun getWorld(): World<C> = world
-
-    override fun initialize(world: World<C>, chunkReleaseCallback: (C) -> Unit, callback: (C) -> Unit) {
+    override fun initialize(world: World<C>, chunkReleaseCallback: (C) -> Unit, chunkLoadedCallback: (C) -> Unit) {
         log.trace { "Initializing Chunk Manager" }
         this.world = world
-        this.releaseCallback = chunkReleaseCallback
-        this.callback = callback
+        this.chunkReleaseCallback = chunkReleaseCallback
+        this.chunkLoadedCallback = chunkLoadedCallback
 
-        loadingQueueingThread.start()
-        savingQueueingThread.start()
-        regionManagerThread.start()
+        loadingQueue.start()
+        savingQueue.start()
+        regionManager.start()
         for (thread in loadingThreads) {
             thread.start()
         }
@@ -132,47 +103,53 @@ class RegionThreadedChunkManager<C : Chunk>(
     }
 
     override fun requestLoad(chunk: C) {
-        regionManagerThread.requestRegionLoad(chunk.position)
-        loadingQueueingThread.addToQueue(chunk)
-    }
-
-    override fun notifyChunkDirty(chunk: C) {
-        chunkSavingQueue.put(chunk)
-    }
-
-    override fun <T : BlockState> setUnloadedChunkBlock(chunkPosition: ChunkPosition, localPosition: BlockPosition, block: Block<T>, blockState: T) {
-        regionManagerThread.requestRegionLoad(chunkPosition)
-
-        var region: Region?
-        do {
-            region = regionManagerThread.getRegion(chunkPosition)
-        } while (region == null)
-        region.changeChunkMeta(chunkPosition, localPosition, block, blockState)
+        if (chunk.state != Chunk.State.EMPTY) {
+            log.error { "Requested to load a non-empty chunk. An error has likely occurred." }
+        }
+        loadingQueue.addToQueue(chunk)
     }
 
     override fun requestUnload(chunk: C) {
-        if (chunk !in toRelease) {
-            toRelease.add(chunk)
+        // Unload can be called multiple times, so we only want to respond if the chunk is in the right state:
+        // A chunk must be either loading or alive to begin the unloading procedure
+        if (chunk.state != Chunk.State.ALIVE && chunk.state != Chunk.State.LOADING) return
+
+        val debounce = chunk.state != Chunk.State.DYING
+        chunk.state = Chunk.State.DYING // This should act to cancel the chunk in the loading threads
+        if (debounce) { // Prevent this from being called too many times
+            loadingQueue.removeFromQueue(chunk)
         }
-        loadingQueueingThread.removeFromQueue(chunk)
+    }
+
+    override fun notifyChunkDirty(chunk: C) {
+        // We only want to try to save a chunk that is currently alive, if it isn't that means the change
+        // occurred during chunk generation (so it's ok if we don't save it)
+        if (chunk.state != Chunk.State.ALIVE) return
+        savingQueue.addToQueue(chunk)
+    }
+
+    override fun <T : BlockState> setUnloadedChunkBlock(
+        chunkPosition: ChunkPosition,
+        localPosition: BlockPosition,
+        block: Block<T>,
+        blockState: T
+    ) {
+        regionManager.getRegion(chunkPosition).changeChunkMeta(chunkPosition, localPosition, block, blockState)
     }
 
     override fun update() {
+        // We don't need to do anything on the main thread
     }
 
     override fun cleanup() {
-        loadingQueueingThread.cancel()
-        savingQueueingThread.cancel()
-        regionManagerThread.cancel()
+        loadingQueue.cancel()
+        savingQueue.cancel()
+        regionManager.cancel()
         for (thread in loadingThreads) {
             thread.cancel()
         }
         for (thread in savingThreads) {
             thread.cancel()
         }
-
-        chunkProcessingQueue.clear()
-        chunkSavingQueue.clear()
-        toRelease.clear()
     }
 }

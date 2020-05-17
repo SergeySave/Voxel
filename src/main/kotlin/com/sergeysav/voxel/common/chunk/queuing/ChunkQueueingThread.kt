@@ -3,6 +3,7 @@ package com.sergeysav.voxel.common.chunk.queuing
 import com.sergeysav.voxel.common.chunk.Chunk
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.BlockingQueue
+import java.util.concurrent.SynchronousQueue
 import java.util.concurrent.TimeUnit
 
 /**
@@ -13,9 +14,9 @@ import java.util.concurrent.TimeUnit
 class ChunkQueueingThread<C : Chunk>(
     private val chunkQueuingStrategy: ChunkQueuingStrategy<C>,
     addRemoveQueueSize: Int,
-    private val processingQueue: BlockingQueue<C>,
     name: String,
-    private val removeCallback: (C) -> Unit = {}
+    private val removeCallback: (C) -> Unit = {},
+    private val idleMillis: Long = 2
 ) : Thread() {
 
     private var alive = false
@@ -27,6 +28,7 @@ class ChunkQueueingThread<C : Chunk>(
 
     private val addQueue: BlockingQueue<C> = ArrayBlockingQueue(addRemoveQueueSize)
     private val removeQueue: BlockingQueue<C> = ArrayBlockingQueue(addRemoveQueueSize)
+    val output: BlockingQueue<C> = SynchronousQueue()
 
     override fun run() {
         alive = true
@@ -44,8 +46,12 @@ class ChunkQueueingThread<C : Chunk>(
             } while (added != null)
 
             val next = chunkQueuingStrategy.tryGetNext()
-            if (next != null && processingQueue.offer(next, 2, TimeUnit.MILLISECONDS)) {
-                chunkQueuingStrategy.remove(next)
+            if (next != null) {
+                if (output.offer(next, idleMillis, TimeUnit.MILLISECONDS)) {
+                    chunkQueuingStrategy.remove(next)
+                } else {
+                    sleep(idleMillis)
+                }
             }
         }
         chunkQueuingStrategy.clear()
