@@ -2,6 +2,7 @@ package com.sergeysav.voxel.common.block
 
 import com.sergeysav.voxel.common.chunk.Chunk
 import com.sergeysav.voxel.common.chunk.ChunkPosition
+import com.sergeysav.voxel.common.data.Direction
 import com.sergeysav.voxel.common.math.divisionQuotient
 import com.sergeysav.voxel.common.math.divisionRemainder
 
@@ -28,5 +29,17 @@ class MutableBlockPosition(
         this.x = this.x.divisionRemainder(Chunk.SIZE)
         this.y = this.y.divisionRemainder(Chunk.SIZE)
         this.z = this.z.divisionRemainder(Chunk.SIZE)
+    }
+
+    operator fun plusAssign(direction: Direction) {
+        this.x += direction.relX
+        this.y += direction.relY
+        this.z += direction.relZ
+    }
+
+    operator fun plusAssign(chunkPosition: ChunkPosition) {
+        this.x += chunkPosition.x * Chunk.SIZE
+        this.y += chunkPosition.y * Chunk.SIZE
+        this.z += chunkPosition.z * Chunk.SIZE
     }
 }

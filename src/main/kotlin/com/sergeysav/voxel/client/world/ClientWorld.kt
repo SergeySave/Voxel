@@ -44,6 +44,7 @@ class ClientWorld(
     private val blockPosPool = LocalObjectPool({ MutableBlockPosition() }, 32)
     private val chunkPosPool = LocalObjectPool({ MutableChunkPosition() }, 32)
     private val raycastResultPool = LocalObjectPool({ RaycastResult(false, RaycastResult.RaycastOutcome.COMPLETED, MutableBlockPosition(), null, null) }, 1)
+    private val blockstorePool = LocalObjectPool({ Array<Block<*>>(1) { Air } }, 4)
     private val chunks = HashMap<ChunkPosition, ClientChunk>()
     private val chunkList = ArrayList<ClientChunk>(4096)
     private val chunkPool: ObjectPool<ClientChunk> = SynchronizedObjectPool({ ClientChunk(MutableChunkPosition()) }, 256)
@@ -143,18 +144,45 @@ class ClientWorld(
         block: Block<T>,
         blockState: T
     ) {
-        chunks[chunkPosition]?.let {
-            it.setBlock(localPosition, block, blockState)
-            worldMeshingManager.notifyMeshDirty(it)
-            chunkManager.notifyChunkDirty(it)
-        }
-        chunkPosPool.with {
-            for (d in Direction.all) {
-                it.set(chunkPosition)
-                it.x += d.relX
-                it.y += d.relY
-                it.z += d.relZ
-                chunks[it]?.let { c -> worldMeshingManager.notifyMeshDirty(c) }
+        chunks[chunkPosition]?.let { chunk ->
+            blockPosPool.with { mutablePos ->
+                mutablePos.set(localPosition)
+                mutablePos += chunkPosition
+                val newState = block.onBlockPlaced(blockState, this, mutablePos)
+                blockstorePool.with { store ->
+                    // If this would not cause a change: ignore it
+                    if (chunk.getBlockAndState(localPosition, store) == newState && store[0] == block) return
+                    // Do the change
+                    chunk.setBlock(localPosition, block, newState)
+
+                    // Update adjacent blocks
+                    for (d in Direction.all) {
+                        mutablePos.set(localPosition)
+                        mutablePos += chunkPosition
+                        mutablePos += d // Move in d direction
+                        val adjacentState = getBlockAndState(mutablePos, store)
+                        if (adjacentState != null) {
+                            @Suppress("UNCHECKED_CAST")
+                            val adjacentBlock = store[0] as Block<BlockState>
+                            val newAdjacentState = adjacentBlock.onAdjacentBlockChanged(adjacentState, this, mutablePos, d.opposite, block, newState)
+                            if (newAdjacentState != adjacentState) {
+                                setBlock(mutablePos, adjacentBlock, newAdjacentState)
+                            }
+                        }
+                    }
+                }
+            }
+            worldMeshingManager.notifyMeshDirty(chunk)
+            chunkManager.notifyChunkDirty(chunk)
+
+            chunkPosPool.with {
+                for (d in Direction.all) {
+                    it.set(chunkPosition)
+                    it.x += d.relX
+                    it.y += d.relY
+                    it.z += d.relZ
+                    chunks[it]?.let { c -> worldMeshingManager.notifyMeshDirty(c) }
+                }
             }
         }
     }
@@ -177,7 +205,7 @@ class ClientWorld(
             blockPosPool.with { blockPos ->
                 blockPos.set(blockPosition)
                 blockPos.setToChunkLocal()
-                chunks[chunkPos]?.getBlock(blockPos)
+                getBlock(blockPos, chunkPos)
             }
         }
     }
@@ -188,7 +216,7 @@ class ClientWorld(
             blockPosPool.with { blockPos ->
                 blockPos.set(blockPosition)
                 blockPos.setToChunkLocal()
-                chunks[chunkPos]?.getBlockState(blockPos)
+                getBlockState(blockPos, chunkPos)
             }
         }
     }
@@ -199,9 +227,21 @@ class ClientWorld(
             blockPosPool.with { blockPos ->
                 blockPos.set(blockPosition)
                 blockPos.setToChunkLocal()
-                chunks[chunkPos]?.getBlockAndState(blockPos, blockStore)
+                getBlockAndState(blockPos, chunkPos, blockStore)
             }
         }
+    }
+
+    override fun getBlock(localPosition: BlockPosition, chunkPosition: ChunkPosition): Block<*>? {
+        return chunks[chunkPosition]?.getBlock(localPosition)
+    }
+
+    override fun getBlockState(localPosition: BlockPosition, chunkPosition: ChunkPosition): BlockState? {
+        return chunks[chunkPosition]?.getBlockState(localPosition)
+    }
+
+    override fun getBlockAndState(localPosition: BlockPosition, chunkPosition: ChunkPosition, blockStore: Array<Block<*>>): BlockState? {
+        return chunks[chunkPosition]?.getBlockAndState(localPosition, blockStore)
     }
 
     override fun update() {
@@ -224,7 +264,10 @@ class ClientWorld(
                         y += (res.face?.relY ?: 0)
                         z += (res.face?.relZ ?: 0)
                     }
-                    setBlock(res.blockPosition, Water, DefaultBlockState)//Test, Test.states.first { it.axis == res.face })
+                    blockPosPool.with { mutablePos ->
+                        mutablePos.set(res.blockPosition)
+                        setBlock(res.blockPosition, Water, Water.State.NORMAL)//Water.onBlockPlaced(Water.State.NORMAL, this, mutablePos))
+                    }
                 } else {
                     val blockState = getBlockAndState(res.blockPosition, blockStore)
                     if (blockState != null) {

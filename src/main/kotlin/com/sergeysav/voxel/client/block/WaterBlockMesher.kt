@@ -7,7 +7,6 @@ import com.sergeysav.voxel.client.resource.texture.TextureResource
 import com.sergeysav.voxel.common.block.BlockPosition
 import com.sergeysav.voxel.common.block.MutableBlockPosition
 import com.sergeysav.voxel.common.block.impl.Water
-import com.sergeysav.voxel.common.block.state.DefaultBlockState
 import com.sergeysav.voxel.common.chunk.Chunk
 import com.sergeysav.voxel.common.data.Direction
 import com.sergeysav.voxel.common.pool.LocalObjectPool
@@ -22,7 +21,7 @@ import com.sergeysav.voxel.common.world.World
  */
 open class WaterBlockMesher(
     private val texture: TextureResource
-) : ClientBlockMesher<Water, DefaultBlockState> {
+) : ClientBlockMesher<Water, Water.State> {
 
     override fun shouldOpaqueAdjacentHideFace(side: Direction): Boolean = false
 
@@ -72,38 +71,24 @@ open class WaterBlockMesher(
         translucentMesher: ChunkMesherCallback,
         pos: BlockPosition,
         block: Water,
-        state: DefaultBlockState,
+        state: Water.State,
         world: World<Chunk>
     ) {
         fullMesh(translucentMesher, Direction.Down, false)
         blockPosPool.with { blockPos ->
             blockPos.set(pos)
-            blockPos.apply {
-                x += Direction.Up.relX
-                y += Direction.Up.relY
-                z += Direction.Up.relZ
-            }
-            val waterAbove = world.getBlock(blockPos) == Water
+            blockPos += Direction.Up
 
             for (i in Direction.flat.indices) {
                 val d = Direction.flat[i]
                 blockPos.set(pos)
-                blockPos.apply {
-                    x += d.relX
-                    y += d.relY
-                    z += d.relZ
-                }
+                blockPos += d
+
                 val waterDirection = world.getBlock(blockPos) == Water
 
-                if (waterAbove) {
+                if (state == Water.State.FULL_BLOCK) {
                     if (waterDirection) {
-                        blockPos.apply {
-                            x += Direction.Up.relX
-                            y += Direction.Up.relY
-                            z += Direction.Up.relZ
-                        }
-                        val waterAboveAdjacent = world.getBlock(blockPos) == Water
-                        if (!waterAboveAdjacent) {
+                        if (world.getBlockState(blockPos) != Water.State.FULL_BLOCK) {
                             partialTopMesh(translucentMesher, d)
                         }
                     } else {
@@ -116,7 +101,7 @@ open class WaterBlockMesher(
                 }
             }
 
-            if (!waterAbove) {
+            if (state != Water.State.FULL_BLOCK) {
                 fullMesh(translucentMesher, Direction.Up, true)
             }
         }

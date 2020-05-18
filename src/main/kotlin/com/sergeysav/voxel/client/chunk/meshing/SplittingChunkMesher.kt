@@ -11,6 +11,7 @@ import com.sergeysav.voxel.common.block.BlockPosition
 import com.sergeysav.voxel.common.block.MutableBlockPosition
 import com.sergeysav.voxel.common.block.state.BlockState
 import com.sergeysav.voxel.common.chunk.Chunk
+import com.sergeysav.voxel.common.chunk.MutableChunkPosition
 import com.sergeysav.voxel.common.data.Direction
 import com.sergeysav.voxel.common.world.World
 import org.lwjgl.BufferUtils
@@ -28,6 +29,7 @@ class SplittingChunkMesher(
     override var chunk: ClientChunk? = null
     private var chunkModificationIndicator = 0
     private lateinit var world: World<*>
+    private val chunkPos = MutableChunkPosition()
     private val blockPos = MutableBlockPosition()
     private val globalBlockPos = MutableBlockPosition()
     private val blockPos2 = MutableBlockPosition()
@@ -143,13 +145,10 @@ class SplittingChunkMesher(
     }
 
     private fun getBlock(blockPosition: MutableBlockPosition, chunk: ClientChunk): Block<*>? {
-        if (blockPosition.x >= chunk.position.x * Chunk.SIZE && blockPosition.x < (chunk.position.x + 1) * Chunk.SIZE &&
-            blockPosition.y >= chunk.position.y * Chunk.SIZE && blockPosition.y < (chunk.position.y + 1) * Chunk.SIZE &&
-            blockPosition.z >= chunk.position.z * Chunk.SIZE && blockPosition.z < (chunk.position.z + 1) * Chunk.SIZE) {
-            blockPosition.setToChunkLocal()
-            return chunk.getBlock(blockPosition)
-        }
-        return world.getBlock(blockPosition)
+        chunkPos.setToChunkOf(blockPosition)
+        blockPosition.setToChunkLocal()
+        if (chunk.position == chunkPos) return chunk.getBlock(blockPosition)
+        return world.getBlock(blockPosition, chunkPos)
     }
 
     companion object {
